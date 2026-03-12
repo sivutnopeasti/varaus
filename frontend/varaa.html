@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Varaa aika</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#f5f6fa;color:#1a1a2e;min-height:100vh}
+  .header{background:#fff;border-bottom:1px solid #e8eaf0;padding:1rem 1.5rem;display:flex;align-items:center;gap:1rem}
+  .biz-name{font-size:1.2rem;font-weight:700}
+  .biz-sub{font-size:0.82rem;color:#64748b}
+  .container{max-width:700px;margin:2rem auto;padding:0 1rem}
+  .step{background:#fff;border-radius:14px;padding:1.5rem;margin-bottom:1rem;border:1px solid #e8eaf0;display:none}
+  .step.active{display:block}
+  .step-title{font-size:1rem;font-weight:700;margin-bottom:1rem;color:#1e3a5f}
+  .service-list{display:flex;flex-direction:column;gap:0.6rem}
+  .service-card{border:2px solid #e8eaf0;border-radius:10px;padding:1rem;cursor:pointer;transition:.15s;display:flex;justify-content:space-between;align-items:center}
+  .service-card:hover,.service-card.sel{border-color:#2563eb;background:#eff6ff}
+  .service-name{font-weight:600;font-size:0.95rem}
+  .service-meta{font-size:0.8rem;color:#64748b;margin-top:2px}
+  .service-price{font-weight:700;color:#2563eb;white-space:nowrap}
+  .date-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:1rem}
+  .day-header{text-align:center;font-size:0.7rem;color:#94a3b8;font-weight:600;padding:4px 0}
+  .day-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:0.88rem;border:1px solid transparent;transition:.15s}
+  .day-cell:hover:not(.disabled):not(.empty){background:#eff6ff;border-color:#2563eb}
+  .day-cell.sel{background:#2563eb;color:#fff;font-weight:700}
+  .day-cell.today{border-color:#2563eb;font-weight:700}
+  .day-cell.disabled{color:#cbd5e1;cursor:default}
+  .day-cell.empty{cursor:default}
+  .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+  .cal-nav button{background:none;border:1px solid #e8eaf0;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:1rem}
+  .cal-title{font-weight:600}
+  .time-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .time-btn{padding:8px 14px;border:2px solid #e8eaf0;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:600;background:#fff;transition:.15s}
+  .time-btn:hover,.time-btn.sel{border-color:#2563eb;background:#eff6ff;color:#2563eb}
+  .no-slots{color:#94a3b8;font-size:0.9rem;padding:1rem 0}
+  label{display:block;font-size:0.82rem;font-weight:600;margin-bottom:4px;color:#374151}
+  input,textarea{width:100%;padding:10px 12px;border:1.5px solid #e8eaf0;border-radius:8px;font-size:0.95rem;margin-bottom:1rem;font-family:inherit;outline:none;transition:.15s}
+  input:focus,textarea:focus{border-color:#2563eb}
+  .btn{width:100%;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:4px;transition:.15s}
+  .btn:hover{background:#1d4ed8}
+  .btn:disabled{background:#94a3b8;cursor:not-allowed}
+  .btn-back{background:none;border:1.5px solid #e8eaf0;color:#374151;margin-bottom:0.75rem;width:auto;padding:8px 18px;font-size:0.88rem}
+  .summary{background:#f8fafc;border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:0.9rem;line-height:1.8}
+  .summary strong{color:#1e3a5f}
+  .ok-box{text-align:center;padding:2rem 1rem}
+  .ok-icon{font-size:3rem;margin-bottom:1rem}
+  .ok-title{font-size:1.3rem;font-weight:700;margin-bottom:0.5rem}
+  .ok-sub{color:#64748b;font-size:0.9rem;line-height:1.6}
+  .loader{text-align:center;padding:2rem;color:#94a3b8}
+  .err-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:0.75rem 1rem;color:#b91c1c;font-size:0.88rem;margin-bottom:1rem}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="biz-name" id="biz-name">Ladataan...</div>
+    <div class="biz-sub" id="biz-sub"></div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Vaihe 1: Valitse palvelu -->
+  <div class="step active" id="step1">
+    <div class="step-title">Valitse palvelu</div>
+    <div class="service-list" id="service-list"><div class="loader">Ladataan...</div></div>
+  </div>
+
+  <!-- Vaihe 2: Valitse päivä -->
+  <div class="step" id="step2">
+    <button class="btn btn-back" onclick="goStep(1)">← Takaisin</button>
+    <div class="step-title">Valitse päivä</div>
+    <div class="cal-nav">
+      <button onclick="prevMonth()">‹</button>
+      <span class="cal-title" id="cal-title"></span>
+      <button onclick="nextMonth()">›</button>
+    </div>
+    <div class="date-grid" id="date-grid"></div>
+  </div>
+
+  <!-- Vaihe 3: Valitse aika -->
+  <div class="step" id="step3">
+    <button class="btn btn-back" onclick="goStep(2)">← Takaisin</button>
+    <div class="step-title">Valitse aika – <span id="sel-date-label"></span></div>
+    <div class="time-grid" id="time-grid"><div class="loader">Ladataan...</div></div>
+  </div>
+
+  <!-- Vaihe 4: Yhteystiedot -->
+  <div class="step" id="step4">
+    <button class="btn btn-back" onclick="goStep(3)">← Takaisin</button>
+    <div class="step-title">Yhteystietosi</div>
+    <div class="summary" id="booking-summary"></div>
+    <label>Nimi *</label>
+    <input id="c-name" placeholder="Matti Meikäläinen">
+    <label>Sähköposti *</label>
+    <input id="c-email" type="email" placeholder="matti@esimerkki.fi">
+    <label>Puhelinnumero</label>
+    <input id="c-phone" placeholder="+358 40 123 4567">
+    <label>Lisätiedot</label>
+    <textarea id="c-notes" rows="3" placeholder="Esim. toiveita tai erityistarpeet"></textarea>
+    <div class="err-box" id="form-err" style="display:none"></div>
+    <button class="btn" id="confirm-btn" onclick="confirmBooking()">Vahvista varaus</button>
+  </div>
+
+  <!-- Valmis -->
+  <div class="step" id="step5">
+    <div class="ok-box">
+      <div class="ok-icon">✅</div>
+      <div class="ok-title">Varaus vahvistettu!</div>
+      <div class="ok-sub" id="ok-text"></div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const slug = new URLSearchParams(location.search).get('yritys');
+if (!slug) { document.body.innerHTML = '<p style="padding:2rem;color:#b91c1c">Virheellinen URL – yritystunnus puuttuu.</p>'; }
+
+let bizData = null, selService = null, selDate = null, selTime = null;
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+
+const FI_MONTHS = ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu','Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'];
+const FI_DAYS   = ['Ma','Ti','Ke','To','Pe','La','Su'];
+
+async function init() {
+  const r = await fetch(`${API}/api/yritys/${slug}`);
+  if (!r.ok) { document.body.innerHTML = '<p style="padding:2rem;color:#b91c1c">Yritystä ei löydy.</p>'; return; }
+  bizData = await r.json();
+  document.getElementById('biz-name').textContent = bizData.name;
+  document.getElementById('biz-sub').textContent = [bizData.address, bizData.phone].filter(Boolean).join(' · ');
+  document.title = 'Varaa aika – ' + bizData.name;
+  renderServices();
+}
+
+function renderServices() {
+  const el = document.getElementById('service-list');
+  if (!bizData.services.length) { el.innerHTML = '<p style="color:#94a3b8">Ei varattavia palveluja.</p>'; return; }
+  el.innerHTML = bizData.services.map(s => `
+    <div class="service-card" onclick="selectService(${s.id})">
+      <div>
+        <div class="service-name">${s.name}</div>
+        <div class="service-meta">${s.duration_min} min${s.description ? ' · ' + s.description : ''}</div>
+      </div>
+      <div class="service-price">${s.price_cents ? (s.price_cents/100).toFixed(0)+' €' : ''}</div>
+    </div>`).join('');
+}
+
+function selectService(id) {
+  selService = bizData.services.find(s => s.id === id);
+  document.querySelectorAll('.service-card').forEach(c => c.classList.remove('sel'));
+  event.currentTarget.classList.add('sel');
+  setTimeout(() => goStep(2), 200);
+}
+
+function goStep(n) {
+  document.querySelectorAll('.step').forEach((s,i) => s.classList.toggle('active', i+1===n));
+  if (n === 2) renderCalendar();
+  if (n === 3) loadSlots();
+  if (n === 4) renderSummary();
+}
+
+function renderCalendar() {
+  const title = document.getElementById('cal-title');
+  const grid  = document.getElementById('date-grid');
+  title.textContent = FI_MONTHS[calMonth] + ' ' + calYear;
+
+  let html = FI_DAYS.map(d => `<div class="day-header">${d}</div>`).join('');
+
+  const first = new Date(calYear, calMonth, 1);
+  const offset = (first.getDay() + 6) % 7;
+  const today  = new Date(); today.setHours(0,0,0,0);
+  const days   = new Date(calYear, calMonth+1, 0).getDate();
+
+  for (let i = 0; i < offset; i++) html += `<div class="day-cell empty"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const date = new Date(calYear, calMonth, d);
+    const isPast = date < today;
+    const isToday = date.getTime() === today.getTime();
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSel = dateStr === selDate;
+    const cls = ['day-cell', isPast?'disabled':'', isToday&&!isSel?'today':'', isSel?'sel':''].join(' ').trim();
+    html += `<div class="${cls}"${!isPast?` onclick="selectDate('${dateStr}')"`:''}>${d}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function prevMonth() { calMonth--; if (calMonth < 0) { calMonth=11; calYear--; } renderCalendar(); }
+function nextMonth() { calMonth++; if (calMonth > 11) { calMonth=0; calYear++; } renderCalendar(); }
+
+function selectDate(d) {
+  selDate = d; selTime = null;
+  renderCalendar();
+  setTimeout(() => goStep(3), 200);
+}
+
+async function loadSlots() {
+  const [y,m,d] = selDate.split('-');
+  const label = `${parseInt(d)}.${parseInt(m)}.${y}`;
+  document.getElementById('sel-date-label').textContent = label;
+  const grid = document.getElementById('time-grid');
+  grid.innerHTML = '<div class="loader">Ladataan...</div>';
+  const r = await fetch(`${API}/api/yritys/${slug}/vapaat?date=${selDate}&palvelu_id=${selService.id}`);
+  const { slots } = await r.json();
+  if (!slots.length) { grid.innerHTML = '<div class="no-slots">Ei vapaita aikoja tälle päivälle.</div>'; return; }
+  grid.innerHTML = slots.map(s => `<button class="time-btn${s===selTime?' sel':''}" onclick="selectTime('${s}')">${s}</button>`).join('');
+}
+
+function selectTime(t) {
+  selTime = t;
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.toggle('sel', b.textContent===t));
+  setTimeout(() => goStep(4), 200);
+}
+
+function renderSummary() {
+  const [y,m,d] = selDate.split('-');
+  document.getElementById('booking-summary').innerHTML =
+    `<strong>${bizData.name}</strong><br>` +
+    `${selService.name} · ${selService.duration_min} min` +
+    (selService.price_cents ? ` · ${(selService.price_cents/100).toFixed(0)} €` : '') + '<br>' +
+    `${parseInt(d)}.${parseInt(m)}.${y} klo ${selTime}`;
+}
+
+async function confirmBooking() {
+  const name  = document.getElementById('c-name').value.trim();
+  const email = document.getElementById('c-email').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  const notes = document.getElementById('c-notes').value.trim();
+  const errEl = document.getElementById('form-err');
+  errEl.style.display = 'none';
+
+  if (!name)  { errEl.textContent='Nimi on pakollinen'; errEl.style.display='block'; return; }
+  if (!email) { errEl.textContent='Sähköposti on pakollinen'; errEl.style.display='block'; return; }
+
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = true; btn.textContent = 'Vahvistetaan...';
+
+  const r = await fetch(`${API}/api/varaukset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, palvelu_id: selService.id, date: selDate, start_time: selTime,
+                           customer_name: name, customer_email: email, customer_phone: phone||null, notes: notes||null })
+  });
+  const data = await r.json();
+  if (!r.ok) {
+    errEl.textContent = data.error || 'Varaus epäonnistui';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Vahvista varaus';
+    return;
+  }
+  const [y,m,d] = selDate.split('-');
+  document.getElementById('ok-text').innerHTML =
+    `<strong>${selService.name}</strong><br>${parseInt(d)}.${parseInt(m)}.${y} klo ${selTime}<br><br>` +
+    `Vahvistus lähetetty osoitteeseen ${email}`;
+  goStep(5);
+}
+
+init();
+</script>
+</body>
+</html>

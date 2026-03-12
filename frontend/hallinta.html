@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hallintapaneeli – Varausjärjestelmä</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#f5f6fa;color:#1a1a2e;min-height:100vh}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+  .login-box{background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:400px;border:1px solid #e8eaf0}
+  .login-box h1{font-size:1.4rem;font-weight:800;color:#1e3a5f;margin-bottom:.25rem}
+  .login-box p{color:#64748b;font-size:.85rem;margin-bottom:1.5rem}
+  .app{display:none}
+  .topbar{background:#1e3a5f;color:#fff;padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between}
+  .topbar-brand{font-weight:700;font-size:1rem}
+  .topbar-right{display:flex;align-items:center;gap:1rem;font-size:.85rem}
+  .topbar-right a{color:#93c5fd;text-decoration:none}
+  .logout-btn{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.8rem}
+  .tabs{background:#fff;border-bottom:1px solid #e8eaf0;display:flex;padding:0 1.5rem;overflow-x:auto}
+  .tab{padding:.9rem 1.2rem;font-size:.88rem;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.15s}
+  .tab.active{color:#2563eb;border-bottom-color:#2563eb}
+  .content{max-width:900px;margin:2rem auto;padding:0 1rem}
+  .panel{display:none}
+  .panel.active{display:block}
+  .card{background:#fff;border-radius:12px;padding:1.5rem;margin-bottom:1rem;border:1px solid #e8eaf0}
+  .card-title{font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:1rem}
+  label{display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#374151}
+  input,select,textarea{width:100%;padding:9px 12px;border:1.5px solid #e8eaf0;border-radius:8px;font-size:.92rem;font-family:inherit;outline:none;transition:.15s;margin-bottom:.8rem}
+  input:focus,select:focus,textarea:focus{border-color:#2563eb}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:560px){.form-row{grid-template-columns:1fr}}
+  .btn{padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;transition:.15s}
+  .btn:hover{background:#1d4ed8}
+  .btn-sm{padding:5px 12px;font-size:.8rem;border-radius:6px}
+  .btn-danger{background:#ef4444}
+  .btn-danger:hover{background:#dc2626}
+  .btn-ghost{background:none;border:1.5px solid #e8eaf0;color:#374151}
+  .btn-ghost:hover{background:#f1f5f9}
+  .err-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:.6rem 1rem;color:#b91c1c;font-size:.85rem;margin-bottom:.8rem;display:none}
+  .ok-box-sm{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:.6rem 1rem;color:#15803d;font-size:.85rem;margin-bottom:.8rem;display:none}
+  .booking-table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .booking-table th{text-align:left;padding:.6rem .75rem;border-bottom:2px solid #e8eaf0;color:#64748b;font-size:.75rem;font-weight:600;text-transform:uppercase}
+  .booking-table td{padding:.65rem .75rem;border-bottom:1px solid #f1f5f9;vertical-align:top}
+  .booking-table tr:hover td{background:#f8fafc}
+  .avail-grid{display:flex;flex-direction:column;gap:.5rem}
+  .avail-row{display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border:1px solid #e8eaf0;border-radius:8px;background:#fff}
+  .avail-day{width:48px;font-size:.82rem;font-weight:600;color:#374151;flex-shrink:0}
+  .avail-row input{margin-bottom:0;width:90px}
+  .avail-toggle{margin-bottom:0;width:auto;accent-color:#2563eb;cursor:pointer}
+  .svc-list{display:flex;flex-direction:column;gap:.5rem}
+  .svc-item{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border:1px solid #e8eaf0;border-radius:8px;background:#fff;gap:.5rem}
+  .svc-info{flex:1;min-width:0}
+  .svc-name{font-weight:600;font-size:.9rem}
+  .svc-meta{font-size:.78rem;color:#64748b;margin-top:2px}
+  .svc-actions{display:flex;gap:.4rem;flex-shrink:0}
+  .tag-inactive{font-size:.72rem;color:#94a3b8;margin-left:6px}
+  .loader{text-align:center;padding:2rem;color:#94a3b8}
+  .empty{text-align:center;padding:2rem;color:#94a3b8;font-size:.9rem}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center;padding:1rem}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:14px;padding:1.5rem;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
+  .modal h3{font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:1rem}
+  .modal-footer{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem}
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <h1>Kirjaudu sisään</h1>
+    <p>Hallinnoi varauksiasi ja palvelujasi.</p>
+    <label>Sähköposti</label>
+    <input id="l-email" type="email" placeholder="anne@kampaamo.fi" onkeydown="if(event.key==='Enter')doLogin()">
+    <label>Salasana</label>
+    <input id="l-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="err-box" id="l-err"></div>
+    <button class="btn" style="width:100%" onclick="doLogin()">Kirjaudu</button>
+    <p style="text-align:center;margin-top:1rem;font-size:.82rem;color:#64748b">
+      Ei vielä tunnusta? <a href="rekisteroidy.html" style="color:#2563eb">Luo tunnus</a>
+    </p>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <span class="topbar-brand">Varausjärjestelmä</span>
+    <div class="topbar-right">
+      <span id="top-biz-name"></span>
+      <a id="top-booking-link" href="#" target="_blank">Varaussivu ↗</a>
+      <button class="logout-btn" onclick="doLogout()">Kirjaudu ulos</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('varaukset')">Varaukset</div>
+    <div class="tab" onclick="showTab('palvelut')">Palvelut</div>
+    <div class="tab" onclick="showTab('aukioloajat')">Aukioloajat</div>
+    <div class="tab" onclick="showTab('asetukset')">Asetukset</div>
+  </div>
+
+  <div class="content">
+    <div class="panel active" id="panel-varaukset">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <div class="card-title" style="margin-bottom:0">Tulevat varaukset</div>
+          <input type="date" id="from-date" style="width:auto;margin-bottom:0" onchange="loadBookings()">
+        </div>
+        <div id="bookings-container"><div class="loader">Ladataan...</div></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-palvelut">
+      <div class="card">
+        <div class="card-title">Palvelut</div>
+        <div id="svc-list-container"><div class="loader">Ladataan...</div></div>
+        <button class="btn" style="margin-top:1rem" onclick="openSvcModal()">+ Lisää palvelu</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-aukioloajat">
+      <div class="card">
+        <div class="card-title">Viikoittaiset aukioloajat</div>
+        <div class="avail-grid" id="avail-grid"></div>
+        <button class="btn" style="margin-top:1rem" onclick="saveAvailability()">Tallenna aukioloajat</button>
+        <div class="ok-box-sm" id="avail-ok">Tallennettu!</div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-asetukset">
+      <div class="card">
+        <div class="card-title">Yrityksen tiedot</div>
+        <label>Yrityksen nimi</label>
+        <input id="s-name" placeholder="Kampaamo Anne">
+        <label>Puhelinnumero</label>
+        <input id="s-phone" placeholder="+358 40 123 4567">
+        <label>Osoite</label>
+        <input id="s-address" placeholder="Esimerkkikatu 1, Helsinki">
+        <label>Kuvaus</label>
+        <textarea id="s-desc" rows="3" placeholder="Lyhyt esittely yrityksestäsi..."></textarea>
+        <div class="ok-box-sm" id="settings-ok">Tallennettu!</div>
+        <div class="err-box" id="settings-err"></div>
+        <button class="btn" onclick="saveSettings()">Tallenna</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="svc-modal">
+  <div class="modal">
+    <h3 id="svc-modal-title">Lisää palvelu</h3>
+    <input type="hidden" id="svc-id">
+    <label>Nimi *</label>
+    <input id="svc-name" placeholder="esim. Leikkaus">
+    <div class="form-row">
+      <div>
+        <label>Kesto (min) *</label>
+        <input id="svc-dur" type="number" placeholder="60" min="5" step="5">
+      </div>
+      <div>
+        <label>Hinta (€)</label>
+        <input id="svc-price" type="number" placeholder="35" min="0">
+      </div>
+    </div>
+    <label>Kuvaus</label>
+    <input id="svc-desc" placeholder="Lyhyt kuvaus (vapaaehtoinen)">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-bottom:.8rem">
+      <input type="checkbox" id="svc-active" checked style="width:auto;margin-bottom:0"> Palvelu aktiivinen
+    </label>
+    <div class="err-box" id="svc-err"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSvcModal()">Peruuta</button>
+      <button class="btn" onclick="saveSvc()">Tallenna</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+let TOKEN = localStorage.getItem('varaus_token');
+let BIZ_SLUG = localStorage.getItem('varaus_slug');
+
+const FI_DAYS_LONG = ['Sunnuntai','Maanantai','Tiistai','Keskiviikko','Torstai','Perjantai','Lauantai'];
+const WORK_DAYS = [1,2,3,4,5,6,0];
+
+if (TOKEN) showApp();
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  const errEl = document.getElementById('l-err');
+  errEl.style.display = 'none';
+  if (!email || !pass) { errEl.textContent='Täytä kaikki kentät'; errEl.style.display='block'; return; }
+
+  const r = await fetch(`${API}/api/auth/kirjaudu`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ email, password: pass })
+  });
+  const d = await r.json();
+  if (!r.ok) { errEl.textContent = d.error; errEl.style.display='block'; return; }
+
+  TOKEN = d.token;
+  BIZ_SLUG = d.slug;
+  localStorage.setItem('varaus_token', TOKEN);
+  localStorage.setItem('varaus_slug', BIZ_SLUG);
+  showApp();
+}
+
+function doLogout() {
+  localStorage.removeItem('varaus_token');
+  localStorage.removeItem('varaus_slug');
+  location.reload();
+}
+
+function showApp() {
+  document.getElementById('login-wrap').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const name = parseJWT(TOKEN)?.name || '';
+  document.getElementById('top-biz-name').textContent = name;
+  document.getElementById('top-booking-link').href = `varaa.html?yritys=${BIZ_SLUG}`;
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('from-date').value = today;
+
+  loadBookings();
+  loadServices();
+  loadAvailability();
+  loadSettings();
+}
+
+function parseJWT(token) {
+  try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
+  catch { return null; }
+}
+
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` };
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['varaukset','palvelut','aukioloajat','asetukset'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${name}`).classList.add('active');
+}
+
+async function loadBookings() {
+  const from = document.getElementById('from-date').value;
+  const container = document.getElementById('bookings-container');
+  container.innerHTML = '<div class="loader">Ladataan...</div>';
+  const r = await fetch(`${API}/api/admin/varaukset?from=${from}`, { headers: authHeaders() });
+  if (r.status === 401) { doLogout(); return; }
+  const data = await r.json();
+  if (!data.length) { container.innerHTML = '<div class="empty">Ei tulevia varauksia.</div>'; return; }
+
+  container.innerHTML = `
+    <div style="overflow-x:auto">
+    <table class="booking-table">
+      <thead><tr>
+        <th>Päivä</th><th>Aika</th><th>Palvelu</th><th>Asiakas</th><th>Puh.</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${data.map(b => {
+          const [y,m,d] = b.date.split('-');
+          return `<tr>
+            <td>${parseInt(d)}.${parseInt(m)}.${y}</td>
+            <td>${b.start_time}–${b.end_time}</td>
+            <td>${b.service_name}${b.price_cents?'<br><span style="font-size:.75rem;color:#64748b">'+(b.price_cents/100).toFixed(0)+' €</span>':''}</td>
+            <td>${b.customer_name}<br><span style="font-size:.75rem;color:#64748b">${b.customer_email}</span></td>
+            <td style="font-size:.82rem">${b.customer_phone||'—'}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="cancelBooking(${b.id})">Peruuta</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>`;
+}
+
+async function cancelBooking(id) {
+  if (!confirm('Peruutetaanko varaus?')) return;
+  await fetch(`${API}/api/admin/varaukset/${id}`, { method: 'DELETE', headers: authHeaders() });
+  loadBookings();
+}
+
+async function loadServices() {
+  const container = document.getElementById('svc-list-container');
+  const r = await fetch(`${API}/api/admin/palvelut`, { headers: authHeaders() });
+  const data = await r.json();
+  if (!data.length) { container.innerHTML = '<div class="empty">Ei palveluja. Lisää ensimmäinen palvelu.</div>'; return; }
+
+  container.innerHTML = `<div class="svc-list">${data.map(s => `
+    <div class="svc-item">
+      <div class="svc-info">
+        <div class="svc-name">${s.name}${!s.is_active?'<span class="tag-inactive">(piilotettu)</span>':''}</div>
+        <div class="svc-meta">${s.duration_min} min${s.price_cents?' · '+(s.price_cents/100).toFixed(0)+' €':''}${s.description?' · '+s.description:''}</div>
+      </div>
+      <div class="svc-actions">
+        <button class="btn btn-sm btn-ghost" onclick="openSvcModal(${s.id})">Muokkaa</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSvc(${s.id})">Poista</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+async function openSvcModal(id) {
+  document.getElementById('svc-err').style.display = 'none';
+  if (id) {
+    const r = await fetch(`${API}/api/admin/palvelut`, { headers: authHeaders() });
+    const data = await r.json();
+    const s = data.find(x => x.id === id);
+    document.getElementById('svc-id').value = s.id;
+    document.getElementById('svc-name').value = s.name;
+    document.getElementById('svc-dur').value = s.duration_min;
+    document.getElementById('svc-price').value = s.price_cents ? s.price_cents/100 : '';
+    document.getElementById('svc-desc').value = s.description || '';
+    document.getElementById('svc-active').checked = !!s.is_active;
+    document.getElementById('svc-modal-title').textContent = 'Muokkaa palvelua';
+  } else {
+    document.getElementById('svc-id').value = '';
+    document.getElementById('svc-name').value = '';
+    document.getElementById('svc-dur').value = '';
+    document.getElementById('svc-price').value = '';
+    document.getElementById('svc-desc').value = '';
+    document.getElementById('svc-active').checked = true;
+    document.getElementById('svc-modal-title').textContent = 'Lisää palvelu';
+  }
+  document.getElementById('svc-modal').classList.add('open');
+}
+
+function closeSvcModal() {
+  document.getElementById('svc-modal').classList.remove('open');
+}
+
+async function saveSvc() {
+  const id       = document.getElementById('svc-id').value;
+  const name     = document.getElementById('svc-name').value.trim();
+  const dur      = parseInt(document.getElementById('svc-dur').value);
+  const price    = document.getElementById('svc-price').value;
+  const desc     = document.getElementById('svc-desc').value.trim();
+  const isActive = document.getElementById('svc-active').checked;
+  const errEl    = document.getElementById('svc-err');
+  errEl.style.display = 'none';
+  if (!name || !dur) { errEl.textContent='Nimi ja kesto ovat pakollisia'; errEl.style.display='block'; return; }
+
+  const body = { name, duration_min: dur, price_cents: price ? Math.round(parseFloat(price)*100) : null,
+                 description: desc || null, is_active: isActive };
+  const r = id
+    ? await fetch(`${API}/api/admin/palvelut/${id}`, { method:'PUT', headers:authHeaders(), body:JSON.stringify(body) })
+    : await fetch(`${API}/api/admin/palvelut`,        { method:'POST', headers:authHeaders(), body:JSON.stringify(body) });
+
+  if (!r.ok) { const d = await r.json(); errEl.textContent = d.error; errEl.style.display='block'; return; }
+  closeSvcModal();
+  loadServices();
+}
+
+async function deleteSvc(id) {
+  if (!confirm('Poistetaanko palvelu pysyvästi?')) return;
+  await fetch(`${API}/api/admin/palvelut/${id}`, { method:'DELETE', headers:authHeaders() });
+  loadServices();
+}
+
+let _availData = [];
+
+async function loadAvailability() {
+  const r = await fetch(`${API}/api/admin/aukioloajat`, { headers: authHeaders() });
+  _availData = await r.json();
+  renderAvailGrid();
+}
+
+function renderAvailGrid() {
+  const grid = document.getElementById('avail-grid');
+  grid.innerHTML = WORK_DAYS.map(dow => {
+    const existing = _availData.find(a => a.day_of_week === dow);
+    const checked = !!existing;
+    return `
+      <div class="avail-row">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;font-weight:600;width:100%">
+          <input type="checkbox" class="avail-toggle" data-dow="${dow}" ${checked?'checked':''} onchange="toggleAvailRow(${dow},this.checked)">
+          <span class="avail-day">${FI_DAYS_LONG[dow].slice(0,2)}</span>
+          <span style="font-size:.82rem;color:#64748b;flex:1">${FI_DAYS_LONG[dow]}</span>
+        </label>
+        <div id="avail-times-${dow}" style="display:${checked?'flex':'none'};align-items:center;gap:.5rem">
+          <input type="time" id="avail-start-${dow}" value="${existing?.start_time||'09:00'}" style="width:100px;margin-bottom:0">
+          <span style="color:#94a3b8">–</span>
+          <input type="time" id="avail-end-${dow}" value="${existing?.end_time||'17:00'}" style="width:100px;margin-bottom:0">
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleAvailRow(dow, show) {
+  document.getElementById(`avail-times-${dow}`).style.display = show ? 'flex' : 'none';
+}
+
+async function saveAvailability() {
+  const slots = [];
+  for (const dow of WORK_DAYS) {
+    const cb = document.querySelector(`.avail-toggle[data-dow="${dow}"]`);
+    if (cb && cb.checked) {
+      slots.push({
+        day_of_week: dow,
+        start_time: document.getElementById(`avail-start-${dow}`).value,
+        end_time:   document.getElementById(`avail-end-${dow}`).value,
+      });
+    }
+  }
+  await fetch(`${API}/api/admin/aukioloajat`, {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ slots })
+  });
+  const ok = document.getElementById('avail-ok');
+  ok.style.display = 'block';
+  setTimeout(() => ok.style.display='none', 2500);
+  loadAvailability();
+}
+
+async function loadSettings() {
+  const r = await fetch(`${API}/api/admin/yritys`, { headers: authHeaders() });
+  const d = await r.json();
+  document.getElementById('s-name').value = d.name || '';
+  document.getElementById('s-phone').value = d.phone || '';
+  document.getElementById('s-address').value = d.address || '';
+  document.getElementById('s-desc').value = d.description || '';
+}
+
+async function saveSettings() {
+  const body = {
+    name: document.getElementById('s-name').value.trim(),
+    phone: document.getElementById('s-phone').value.trim() || null,
+    address: document.getElementById('s-address').value.trim() || null,
+    description: document.getElementById('s-desc').value.trim() || null,
+  };
+  const errEl = document.getElementById('settings-err');
+  errEl.style.display = 'none';
+  if (!body.name) { errEl.textContent='Nimi on pakollinen'; errEl.style.display='block'; return; }
+
+  const r = await fetch(`${API}/api/admin/yritys`, {
+    method: 'PUT', headers: authHeaders(), body: JSON.stringify(body)
+  });
+  if (!r.ok) { const d = await r.json(); errEl.textContent=d.error; errEl.style.display='block'; return; }
+
+  document.getElementById('top-biz-name').textContent = body.name;
+  const ok = document.getElementById('settings-ok');
+  ok.style.display = 'block';
+  setTimeout(() => ok.style.display='none', 2500);
+}
+</script>
+</body>
+</html>

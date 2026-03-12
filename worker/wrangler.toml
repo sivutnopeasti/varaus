@@ -1,0 +1,8 @@
+name = "varaus-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "varaus-db"
+database_id = "KORVAA_TAMA_D1_ID_KOMENNOLLA_wrangler_d1_create_varaus-db"

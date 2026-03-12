@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luo tunnus – Varausjärjestelmä</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#f5f6fa;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+  .box{background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:440px;border:1px solid #e8eaf0}
+  h1{font-size:1.5rem;font-weight:800;color:#1e3a5f;margin-bottom:.25rem}
+  p{color:#64748b;font-size:.88rem;margin-bottom:1.5rem}
+  label{display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#374151}
+  input{width:100%;padding:10px 12px;border:1.5px solid #e8eaf0;border-radius:8px;font-size:.95rem;margin-bottom:.85rem;outline:none;transition:.15s}
+  input:focus{border-color:#2563eb}
+  input.err{border-color:#ef4444}
+  .hint{font-size:.75rem;color:#94a3b8;margin-top:-10px;margin-bottom:.85rem}
+  .slug-preview{font-size:.78rem;color:#2563eb;margin-top:-10px;margin-bottom:.85rem;min-height:1em}
+  .btn{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:.15s}
+  .btn:hover{background:#1d4ed8}
+  .err-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:.75rem 1rem;color:#b91c1c;font-size:.88rem;margin-bottom:.85rem;display:none}
+  .back{text-align:center;font-size:.82rem;margin-top:1rem}
+  .back a{color:#2563eb}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Luo yrittäjätunnus</h1>
+  <p>Ilmainen käyttöönotto – saat oman varaussivun heti.</p>
+
+  <label>Yrityksen nimi *</label>
+  <input id="r-name" placeholder="esim. Kampaamo Anne">
+
+  <label>Sähköpostiosoite *</label>
+  <input id="r-email" type="email" placeholder="anne@kampaamo.fi">
+
+  <label>URL-tunnus *</label>
+  <input id="r-slug" placeholder="kampaamo-anne" oninput="updateSlug()">
+  <div class="hint">Vain pienet kirjaimet, numerot ja väliviiva</div>
+  <div class="slug-preview" id="slug-preview"></div>
+
+  <label>Salasana * (min. 8 merkkiä)</label>
+  <input id="r-pass" type="password" placeholder="••••••••">
+
+  <div class="err-box" id="r-err"></div>
+  <button class="btn" onclick="doReg()">Luo tunnus</button>
+  <div class="back">Onko jo tunnus? <a href="hallinta.html">Kirjaudu sisään</a></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+function slugify(s) {
+  return s.toLowerCase()
+    .replace(/[äå]/g,'a').replace(/ö/g,'o').replace(/ü/g,'u')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+
+document.getElementById('r-name').addEventListener('input', function() {
+  const slugEl = document.getElementById('r-slug');
+  if (!slugEl.dataset.manual) slugEl.value = slugify(this.value);
+  updateSlug();
+});
+
+document.getElementById('r-slug').addEventListener('input', function() {
+  this.dataset.manual = '1';
+  this.value = slugify(this.value);
+  updateSlug();
+});
+
+function updateSlug() {
+  const slug = document.getElementById('r-slug').value;
+  const origin = location.origin + location.pathname.replace('rekisteroidy.html','');
+  document.getElementById('slug-preview').textContent = slug
+    ? `Varaussivu: ${origin}varaa.html?yritys=${slug}`
+    : '';
+}
+
+async function doReg() {
+  const name  = document.getElementById('r-name').value.trim();
+  const email = document.getElementById('r-email').value.trim();
+  const slug  = document.getElementById('r-slug').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const errEl = document.getElementById('r-err');
+  errEl.style.display = 'none';
+
+  if (!name || !email || !slug || !pass) { errEl.textContent='Täytä kaikki kentät'; errEl.style.display='block'; return; }
+  if (pass.length < 8)                   { errEl.textContent='Salasana liian lyhyt'; errEl.style.display='block'; return; }
+
+  const r = await fetch(`${API}/api/auth/rekisteroidy`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name, email, password: pass, slug })
+  });
+  const d = await r.json();
+  if (!r.ok) { errEl.textContent = d.error; errEl.style.display='block'; return; }
+  location.href = 'hallinta.html';
+}
+</script>
+</body>
+</html>
