@@ -20,14 +20,15 @@
   .service-name{font-weight:600;font-size:0.95rem}
   .service-meta{font-size:0.8rem;color:#64748b;margin-top:2px}
   .service-price{font-weight:700;color:#2563eb;white-space:nowrap}
-  .date-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:1rem}
-  .day-header{text-align:center;font-size:0.7rem;color:#94a3b8;font-weight:600;padding:4px 0}
-  .day-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;font-size:0.88rem;border:1px solid transparent;transition:.15s}
-  .day-cell:hover:not(.disabled):not(.empty){background:#eff6ff;border-color:#2563eb}
+  .date-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#e8eaf0;margin-bottom:1rem;border:1px solid #e8eaf0;border-radius:10px;overflow:hidden}
+  .day-header{text-align:center;font-size:0.7rem;color:#94a3b8;font-weight:600;padding:6px 0;background:#f8fafc}
+  .day-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.88rem;transition:.15s;background:#fff}
+  .day-cell:hover:not(.disabled):not(.empty){background:#eff6ff;color:#2563eb;font-weight:600}
   .day-cell.sel{background:#2563eb;color:#fff;font-weight:700}
-  .day-cell.today{border-color:#2563eb;font-weight:700}
-  .day-cell.disabled{color:#cbd5e1;cursor:default}
-  .day-cell.empty{cursor:default}
+  .day-cell.today{background:#eff6ff;color:#2563eb;font-weight:700}
+  .day-cell.today.sel{background:#2563eb;color:#fff}
+  .day-cell.disabled{color:#cbd5e1;cursor:default;background:#fafafa}
+  .day-cell.empty{cursor:default;background:#fff}
   .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
   .cal-nav button{background:none;border:1px solid #e8eaf0;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:1rem}
   .cal-title{font-weight:600}
@@ -260,8 +261,14 @@ async function loadSlots() {
   grid.innerHTML = '<div class="loader">Ladataan...</div>';
   const r = await fetch(`${API}/api/yritys/${slug}/vapaat?date=${selDate}&palvelu_id=${selService.id}`);
   const { slots } = await r.json();
-  if (!slots.length) { grid.innerHTML = '<div class="no-slots">Ei vapaita aikoja tälle päivälle.</div>'; return; }
-  grid.innerHTML = slots.map(s => `<button class="time-btn${s===selTime?' sel':''}" onclick="selectTime('${s}')">${s}</button>`).join('');
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const visible = selDate === todayStr
+    ? slots.filter(s => { const [h,m] = s.split(':').map(Number); return h*60+m > nowMin; })
+    : slots;
+  if (!visible.length) { grid.innerHTML = '<div class="no-slots">Ei vapaita aikoja tälle päivälle.</div>'; return; }
+  grid.innerHTML = visible.map(s => `<button class="time-btn${s===selTime?' sel':''}" onclick="selectTime('${s}')">${s}</button>`).join('');
 }
 
 function selectTime(t) {
