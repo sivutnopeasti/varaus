@@ -100,7 +100,7 @@ export default {
         ).bind(slug).first();
         if (!biz) return err('Yritystä ei löydy', 404);
         const { results: services } = await env.DB.prepare(
-          'SELECT id, name, duration_min, price_cents, description FROM services WHERE business_id = ? AND is_active = 1 ORDER BY id'
+          'SELECT id, name, duration_min, price_cents, description FROM services WHERE business_id = ? AND is_active = 1 ORDER BY category, sort_order, id'
         ).bind(biz.id).all();
         return json({ ...biz, services });
       }
@@ -165,7 +165,7 @@ export default {
 
       // ── Auth: rekisteröinti ────────────────────────────────────────────
       if (method === 'POST' && path === '/api/auth/rekisteroidy') {
-        const { name, email, password, slug } = await req.json();
+        const { owner_name, name, email, password, slug, phone, business_id } = await req.json();
         if (!name || !email || !password || !slug) return err('Kaikki kentät vaaditaan');
         if (password.length < 8)                   return err('Salasana: vähintään 8 merkkiä');
         if (!/^[a-z0-9-]{2,40}$/.test(slug))       return err('URL-tunnus: 2–40 merkkiä, vain a-z 0-9 ja -');
@@ -173,8 +173,8 @@ export default {
         const exists = await env.DB.prepare('SELECT id FROM businesses WHERE email=? OR slug=?').bind(email, slug).first();
         if (exists) return err('Sähköposti tai URL-tunnus on jo käytössä');
 
-        await env.DB.prepare('INSERT INTO businesses (name,email,password_hash,slug) VALUES (?,?,?,?)')
-          .bind(name, email, await hashPassword(password), slug).run();
+        await env.DB.prepare('INSERT INTO businesses (owner_name,name,email,password_hash,slug,phone,business_id) VALUES (?,?,?,?,?,?,?)')
+          .bind(owner_name||null, name, email, await hashPassword(password), slug, phone||null, business_id||null).run();
         return json({ ok: true }, 201);
       }
 
@@ -183,15 +183,15 @@ export default {
         const { email, password } = await req.json();
         if (!email || !password) return err('Sähköposti ja salasana vaaditaan');
 
-        const biz = await env.DB.prepare('SELECT id,name,slug,password_hash FROM businesses WHERE email=?').bind(email).first();
+        const biz = await env.DB.prepare('SELECT id,name,owner_name,slug,password_hash FROM businesses WHERE email=?').bind(email).first();
         if (!biz || !await verifyPassword(password, biz.password_hash))
           return err('Väärä sähköposti tai salasana', 401);
 
         const token = await signJWT(
-          { sub: biz.id, name: biz.name, slug: biz.slug, exp: Math.floor(Date.now()/1000) + 86400*30 },
+          { sub: biz.id, name: biz.name, owner_name: biz.owner_name, slug: biz.slug, exp: Math.floor(Date.now()/1000) + 86400*30 },
           env.JWT_SECRET
         );
-        return json({ token, name: biz.name, slug: biz.slug });
+        return json({ token, name: biz.name, owner_name: biz.owner_name, slug: biz.slug });
       }
 
       // ── Admin: omat tiedot ─────────────────────────────────────────────
@@ -199,16 +199,16 @@ export default {
         const auth = await getAuth(req, env);
         if (!auth) return err('Kirjautuminen vaaditaan', 401);
         return json(await env.DB.prepare(
-          'SELECT id,name,slug,email,phone,address,description FROM businesses WHERE id=?'
+          'SELECT id,name,owner_name,slug,email,phone,address,description,business_id FROM businesses WHERE id=?'
         ).bind(auth.sub).first());
       }
 
       if (method === 'PUT' && path === '/api/admin/yritys') {
         const auth = await getAuth(req, env);
         if (!auth) return err('Kirjautuminen vaaditaan', 401);
-        const { name, phone, address, description } = await req.json();
-        await env.DB.prepare('UPDATE businesses SET name=?,phone=?,address=?,description=? WHERE id=?')
-          .bind(name, phone||null, address||null, description||null, auth.sub).run();
+        const { name, owner_name, phone, address, description, business_id } = await req.json();
+        await env.DB.prepare('UPDATE businesses SET name=?,owner_name=?,phone=?,address=?,description=?,business_id=? WHERE id=?')
+          .bind(name, owner_name||null, phone||null, address||null, description||null, business_id||null, auth.sub).run();
         return json({ ok: true });
       }
 
@@ -216,17 +216,20 @@ export default {
       if (method === 'GET' && path === '/api/admin/palvelut') {
         const auth = await getAuth(req, env);
         if (!auth) return err('Kirjautuminen vaaditaan', 401);
-        const { results } = await env.DB.prepare('SELECT * FROM services WHERE business_id=? ORDER BY id').bind(auth.sub).all();
+        const { results } = await env.DB.prepare(
+          'SELECT * FROM services WHERE business_id=? ORDER BY category, sort_order, id'
+        ).bind(auth.sub).all();
         return json(results);
       }
 
       if (method === 'POST' && path === '/api/admin/palvelut') {
         const auth = await getAuth(req, env);
         if (!auth) return err('Kirjautuminen vaaditaan', 401);
-        const { name, duration_min, price_cents, description } = await req.json();
+        const { name, duration_min, price_cents, description, is_active, category, sort_order } = await req.json();
         if (!name || !duration_min) return err('Nimi ja kesto vaaditaan');
-        await env.DB.prepare('INSERT INTO services (business_id,name,duration_min,price_cents,description) VALUES (?,?,?,?,?)')
-          .bind(auth.sub, name, duration_min, price_cents||null, description||null).run();
+        await env.DB.prepare(
+          'INSERT INTO services (business_id,name,duration_min,price_cents,description,is_active,category,sort_order) VALUES (?,?,?,?,?,?,?,?)'
+        ).bind(auth.sub, name, duration_min, price_cents||null, description||null, is_active!==false?1:0, category||null, sort_order||0).run();
         return json({ ok: true }, 201);
       }
 
@@ -234,9 +237,10 @@ export default {
         const auth = await getAuth(req, env);
         if (!auth) return err('Kirjautuminen vaaditaan', 401);
         const id = path.split('/').pop();
-        const { name, duration_min, price_cents, description, is_active } = await req.json();
-        await env.DB.prepare('UPDATE services SET name=?,duration_min=?,price_cents=?,description=?,is_active=? WHERE id=? AND business_id=?')
-          .bind(name, duration_min, price_cents||null, description||null, is_active?1:0, id, auth.sub).run();
+        const { name, duration_min, price_cents, description, is_active, category, sort_order } = await req.json();
+        await env.DB.prepare(
+          'UPDATE services SET name=?,duration_min=?,price_cents=?,description=?,is_active=?,category=?,sort_order=? WHERE id=? AND business_id=?'
+        ).bind(name, duration_min, price_cents||null, description||null, is_active?1:0, category||null, sort_order||0, id, auth.sub).run();
         return json({ ok: true });
       }
 
@@ -267,20 +271,71 @@ export default {
         return json({ ok: true });
       }
 
-      // ── Admin: varaukset ───────────────────────────────────────────────
+      // ── Admin: varaukset (haku) ────────────────────────────────────────
       if (method === 'GET' && path === '/api/admin/varaukset') {
         const auth = await getAuth(req, env);
         if (!auth) return err('Kirjautuminen vaaditaan', 401);
         const from = url.searchParams.get('from') || new Date().toISOString().split('T')[0];
-        const { results } = await env.DB.prepare(`
-          SELECT b.*, s.name AS service_name, s.price_cents
-          FROM bookings b JOIN services s ON b.service_id = s.id
-          WHERE b.business_id=? AND b.date>=? AND b.status!='cancelled'
-          ORDER BY b.date, b.start_time
-        `).bind(auth.sub, from).all();
+        const to   = url.searchParams.get('to');
+        let query, binds;
+        if (to) {
+          query = `SELECT b.*, s.name AS service_name, s.price_cents
+            FROM bookings b JOIN services s ON b.service_id = s.id
+            WHERE b.business_id=? AND b.date>=? AND b.date<=? AND b.status!='cancelled'
+            ORDER BY b.date, b.start_time`;
+          binds = [auth.sub, from, to];
+        } else {
+          query = `SELECT b.*, s.name AS service_name, s.price_cents
+            FROM bookings b JOIN services s ON b.service_id = s.id
+            WHERE b.business_id=? AND b.date>=? AND b.status!='cancelled'
+            ORDER BY b.date, b.start_time`;
+          binds = [auth.sub, from];
+        }
+        const { results } = await env.DB.prepare(query).bind(...binds).all();
         return json(results);
       }
 
+      // ── Admin: lisää varaus ────────────────────────────────────────────
+      if (method === 'POST' && path === '/api/admin/varaukset') {
+        const auth = await getAuth(req, env);
+        if (!auth) return err('Kirjautuminen vaaditaan', 401);
+        const { service_id, date, start_time, end_time, customer_name, customer_email, customer_phone, notes } = await req.json();
+        if (!service_id || !date || !start_time || !end_time)
+          return err('Pakolliset kentät puuttuvat');
+
+        const svc = await env.DB.prepare('SELECT id FROM services WHERE id=? AND business_id=?').bind(service_id, auth.sub).first();
+        if (!svc) return err('Palvelua ei löydy', 404);
+
+        const conflict = await env.DB.prepare(
+          "SELECT id FROM bookings WHERE business_id=? AND date=? AND status!='cancelled' AND start_time<? AND end_time>?"
+        ).bind(auth.sub, date, end_time, start_time).first();
+        if (conflict) return err('Aika on jo varattuna', 409);
+
+        const r = await env.DB.prepare(
+          'INSERT INTO bookings (business_id,service_id,date,start_time,end_time,customer_name,customer_email,customer_phone,notes) VALUES (?,?,?,?,?,?,?,?,?)'
+        ).bind(auth.sub, service_id, date, start_time, end_time, customer_name||'Yrittäjä', customer_email||'', customer_phone||null, notes||null).run();
+        return json({ ok: true, booking_id: r.meta.last_row_id }, 201);
+      }
+
+      // ── Admin: muokkaa varausta ────────────────────────────────────────
+      if (method === 'PUT' && /^\/api\/admin\/varaukset\/\d+$/.test(path)) {
+        const auth = await getAuth(req, env);
+        if (!auth) return err('Kirjautuminen vaaditaan', 401);
+        const id = path.split('/').pop();
+        const { service_id, date, start_time, end_time, customer_name, customer_email, customer_phone, notes } = await req.json();
+
+        const conflict = await env.DB.prepare(
+          "SELECT id FROM bookings WHERE business_id=? AND date=? AND status!='cancelled' AND id!=? AND start_time<? AND end_time>?"
+        ).bind(auth.sub, date, id, end_time, start_time).first();
+        if (conflict) return err('Aika on jo varattuna', 409);
+
+        await env.DB.prepare(
+          'UPDATE bookings SET service_id=?,date=?,start_time=?,end_time=?,customer_name=?,customer_email=?,customer_phone=?,notes=? WHERE id=? AND business_id=?'
+        ).bind(service_id, date, start_time, end_time, customer_name||'', customer_email||'', customer_phone||null, notes||null, id, auth.sub).run();
+        return json({ ok: true });
+      }
+
+      // ── Admin: peru varaus ─────────────────────────────────────────────
       if (method === 'DELETE' && /^\/api\/admin\/varaukset\/\d+$/.test(path)) {
         const auth = await getAuth(req, env);
         if (!auth) return err('Kirjautuminen vaaditaan', 401);

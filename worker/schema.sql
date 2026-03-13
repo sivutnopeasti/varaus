@@ -3,12 +3,14 @@
 CREATE TABLE IF NOT EXISTS businesses (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   name          TEXT NOT NULL,
+  owner_name    TEXT,
   email         TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   slug          TEXT NOT NULL UNIQUE,
   phone         TEXT,
   address       TEXT,
   description   TEXT,
+  business_id   TEXT,
   created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -19,7 +21,9 @@ CREATE TABLE IF NOT EXISTS services (
   duration_min  INTEGER NOT NULL,
   price_cents   INTEGER,
   description   TEXT,
-  is_active     INTEGER NOT NULL DEFAULT 1
+  is_active     INTEGER NOT NULL DEFAULT 1,
+  category      TEXT,
+  sort_order    INTEGER NOT NULL DEFAULT 0
 );
 
 -- Viikoittainen aukioloaika (day_of_week: 0=Su, 1=Ma ... 6=La)

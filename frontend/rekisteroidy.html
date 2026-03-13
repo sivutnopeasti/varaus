@@ -3,47 +3,94 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Luo tunnus – Varausjärjestelmä</title>
+<title>Luo liike ja tili – Varausjärjestelmä</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:system-ui,sans-serif;background:#f5f6fa;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
-  .box{background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:440px;border:1px solid #e8eaf0}
-  h1{font-size:1.5rem;font-weight:800;color:#1e3a5f;margin-bottom:.25rem}
-  p{color:#64748b;font-size:.88rem;margin-bottom:1.5rem}
+  .box{background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:460px;border:1px solid #e8eaf0;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+  .logo{font-size:1.5rem;font-weight:800;color:#7c5cfc;margin-bottom:1.5rem}
+  .trial-badge{background:#f0ebff;color:#7c5cfc;font-size:.82rem;font-weight:600;border-radius:20px;padding:4px 12px;display:inline-block;margin-bottom:.5rem}
+  h1{font-size:1.35rem;font-weight:800;color:#1a1a2e;margin-bottom:.25rem}
+  .sub{color:#64748b;font-size:.88rem;margin-bottom:1.5rem;line-height:1.5}
   label{display:block;font-size:.8rem;font-weight:600;margin-bottom:4px;color:#374151}
-  input{width:100%;padding:10px 12px;border:1.5px solid #e8eaf0;border-radius:8px;font-size:.95rem;margin-bottom:.85rem;outline:none;transition:.15s}
-  input:focus{border-color:#2563eb}
+  .field{margin-bottom:.85rem;position:relative}
+  input{width:100%;padding:10px 12px;border:1.5px solid #e8eaf0;border-radius:8px;font-size:.95rem;outline:none;transition:.15s;font-family:inherit}
+  input:focus{border-color:#7c5cfc}
   input.err{border-color:#ef4444}
-  .hint{font-size:.75rem;color:#94a3b8;margin-top:-10px;margin-bottom:.85rem}
-  .slug-preview{font-size:.78rem;color:#2563eb;margin-top:-10px;margin-bottom:.85rem;min-height:1em}
-  .btn{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:.15s}
-  .btn:hover{background:#1d4ed8}
-  .err-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:.75rem 1rem;color:#b91c1c;font-size:.88rem;margin-bottom:.85rem;display:none}
-  .back{text-align:center;font-size:.82rem;margin-top:1rem}
-  .back a{color:#2563eb}
+  .pass-wrap{position:relative}
+  .pass-wrap input{padding-right:40px}
+  .pass-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;padding:4px}
+  .hint{font-size:.75rem;color:#94a3b8;margin-top:4px}
+  .slug-preview{font-size:.78rem;color:#7c5cfc;margin-top:4px;min-height:1em}
+  .optional{font-size:.72rem;color:#94a3b8;font-weight:400;margin-left:4px}
+  .divider{border:none;border-top:1px solid #f1f5f9;margin:1rem 0}
+  .check-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:1rem}
+  .check-row input[type="checkbox"]{width:18px;height:18px;accent-color:#7c5cfc;cursor:pointer;flex-shrink:0;margin-top:2px}
+  .check-row span{font-size:.82rem;color:#374151;line-height:1.5}
+  .check-row a{color:#7c5cfc;text-decoration:none}
+  .btn{width:100%;padding:13px;background:#7c5cfc;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;transition:.15s;margin-top:.25rem}
+  .btn:hover{background:#6d4ef0}
+  .btn:disabled{background:#c4b5fd;cursor:not-allowed}
+  .err-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:.7rem 1rem;color:#b91c1c;font-size:.85rem;margin-bottom:.85rem;display:none}
+  .back{text-align:center;font-size:.82rem;margin-top:1rem;color:#64748b}
+  .back a{color:#7c5cfc;text-decoration:none}
 </style>
 </head>
 <body>
 <div class="box">
-  <h1>Luo yrittäjätunnus</h1>
-  <p>Ilmainen käyttöönotto – saat oman varaussivun heti.</p>
+  <div class="logo">Varausjärjestelmä</div>
+  <div class="trial-badge">Kokeile 30 päivän ajan ilmaiseksi.</div>
+  <p class="sub" style="margin-top:.5rem">Olemme yhteydessä pian auttaaksemme sinut alkuun.</p>
 
-  <label>Yrityksen nimi *</label>
-  <input id="r-name" placeholder="esim. Kampaamo Anne">
+  <div class="field">
+    <label>Etu- ja sukunimi *</label>
+    <input id="r-owner" placeholder="Matti Meikäläinen">
+  </div>
 
-  <label>Sähköpostiosoite *</label>
-  <input id="r-email" type="email" placeholder="anne@kampaamo.fi">
+  <div class="field">
+    <label>Yrityksen nimi *</label>
+    <input id="r-name" placeholder="Kampaamo Anne">
+  </div>
 
-  <label>URL-tunnus *</label>
-  <input id="r-slug" placeholder="kampaamo-anne" oninput="updateSlug()">
-  <div class="hint">Vain pienet kirjaimet, numerot ja väliviiva</div>
-  <div class="slug-preview" id="slug-preview"></div>
+  <div class="field">
+    <label>Puhelin *</label>
+    <input id="r-phone" type="tel" placeholder="+358 40 123 4567">
+  </div>
 
-  <label>Salasana * (min. 8 merkkiä)</label>
-  <input id="r-pass" type="password" placeholder="••••••••">
+  <div class="field">
+    <label>Sähköposti *</label>
+    <input id="r-email" type="email" placeholder="matti@esimerkki.fi">
+  </div>
+
+  <div class="field">
+    <label>Salasana *</label>
+    <div class="pass-wrap">
+      <input id="r-pass" type="password" placeholder="••••••••">
+      <button class="pass-toggle" type="button" onclick="togglePass()" title="Näytä/piilota salasana">👁</button>
+    </div>
+    <div class="hint">Vähintään 8 merkkiä</div>
+  </div>
+
+  <div class="field">
+    <label>Y-tunnus <span class="optional">(vapaaehtoinen)</span></label>
+    <input id="r-ytunnus" placeholder="1234567-8">
+  </div>
+
+  <hr class="divider">
+
+  <div class="field" style="display:none">
+    <label>URL-tunnus *</label>
+    <input id="r-slug" placeholder="kampaamo-anne" oninput="manualSlug()">
+    <div class="slug-preview" id="slug-preview"></div>
+  </div>
+
+  <div class="check-row">
+    <input type="checkbox" id="r-terms">
+    <span>Olen lukenut ja hyväksyn <a href="#" onclick="return false">Käyttöehdot</a> ja <a href="#" onclick="return false">Tietosuojaselosteen</a>.</span>
+  </div>
 
   <div class="err-box" id="r-err"></div>
-  <button class="btn" onclick="doReg()">Luo tunnus</button>
+  <button class="btn" id="reg-btn" onclick="doReg()">Luo liike ja tili</button>
   <div class="back">Onko jo tunnus? <a href="hallinta.html">Kirjaudu sisään</a></div>
 </div>
 
@@ -55,43 +102,69 @@ function slugify(s) {
     .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 }
 
+let _manualSlug = false;
+
 document.getElementById('r-name').addEventListener('input', function() {
-  const slugEl = document.getElementById('r-slug');
-  if (!slugEl.dataset.manual) slugEl.value = slugify(this.value);
-  updateSlug();
+  if (!_manualSlug) {
+    document.getElementById('r-slug').value = slugify(this.value);
+    updateSlugPreview();
+  }
 });
 
-document.getElementById('r-slug').addEventListener('input', function() {
-  this.dataset.manual = '1';
-  this.value = slugify(this.value);
-  updateSlug();
-});
+function manualSlug() {
+  _manualSlug = true;
+  document.getElementById('r-slug').value = slugify(document.getElementById('r-slug').value);
+  updateSlugPreview();
+}
 
-function updateSlug() {
+function updateSlugPreview() {
   const slug = document.getElementById('r-slug').value;
   const origin = location.origin + location.pathname.replace('rekisteroidy.html','');
   document.getElementById('slug-preview').textContent = slug
-    ? `Varaussivu: ${origin}varaa.html?yritys=${slug}`
-    : '';
+    ? `Varaussivu: ${origin}varaa.html?yritys=${slug}` : '';
+}
+
+function togglePass() {
+  const inp = document.getElementById('r-pass');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
 }
 
 async function doReg() {
-  const name  = document.getElementById('r-name').value.trim();
-  const email = document.getElementById('r-email').value.trim();
-  const slug  = document.getElementById('r-slug').value.trim();
-  const pass  = document.getElementById('r-pass').value;
-  const errEl = document.getElementById('r-err');
+  const owner  = document.getElementById('r-owner').value.trim();
+  const name   = document.getElementById('r-name').value.trim();
+  const phone  = document.getElementById('r-phone').value.trim();
+  const email  = document.getElementById('r-email').value.trim();
+  const pass   = document.getElementById('r-pass').value;
+  const ytunnus= document.getElementById('r-ytunnus').value.trim();
+  const terms  = document.getElementById('r-terms').checked;
+  const errEl  = document.getElementById('r-err');
   errEl.style.display = 'none';
 
-  if (!name || !email || !slug || !pass) { errEl.textContent='Täytä kaikki kentät'; errEl.style.display='block'; return; }
-  if (pass.length < 8)                   { errEl.textContent='Salasana liian lyhyt'; errEl.style.display='block'; return; }
+  if (!owner)  { errEl.textContent='Nimi on pakollinen'; errEl.style.display='block'; return; }
+  if (!name)   { errEl.textContent='Yrityksen nimi on pakollinen'; errEl.style.display='block'; return; }
+  if (!phone)  { errEl.textContent='Puhelinnumero on pakollinen'; errEl.style.display='block'; return; }
+  if (!email)  { errEl.textContent='Sähköposti on pakollinen'; errEl.style.display='block'; return; }
+  if (!pass || pass.length < 8) { errEl.textContent='Salasana on liian lyhyt (min. 8 merkkiä)'; errEl.style.display='block'; return; }
+  if (!terms)  { errEl.textContent='Hyväksy käyttöehdot jatkaaksesi'; errEl.style.display='block'; return; }
+
+  // auto-generate slug from name
+  const slug = slugify(name) || slugify(owner);
+  if (!slug) { errEl.textContent='Virheellinen yrityksen nimi'; errEl.style.display='block'; return; }
+
+  const btn = document.getElementById('reg-btn');
+  btn.disabled = true; btn.textContent = 'Luodaan...';
 
   const r = await fetch(`${API}/api/auth/rekisteroidy`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ name, email, password: pass, slug })
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ owner_name: owner, name, email, password: pass, slug, phone, business_id: ytunnus||null })
   });
   const d = await r.json();
-  if (!r.ok) { errEl.textContent = d.error; errEl.style.display='block'; return; }
+  if (!r.ok) {
+    errEl.textContent = d.error;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Luo liike ja tili';
+    return;
+  }
   location.href = 'hallinta.html';
 }
 </script>
