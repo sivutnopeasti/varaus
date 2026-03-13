@@ -280,7 +280,7 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
     <label>Palvelun nimi *</label>
     <input id="svc-name" placeholder="esim. Leikkaus">
     <label>Kategoria</label>
-    <select id="svc-cat">
+    <select id="svc-cat" onchange="onCatChange()">
       <option value="">– valitse kategoria –</option>
       <optgroup label="Hiuspalvelut">
         <option>Leikkaukset</option>
@@ -349,21 +349,48 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
         <option>Oma kategoria 14</option>
       </optgroup>
     </select>
-    <label>Kuvaus</label>
-    <input id="svc-desc" placeholder="Lyhyt kuvaus (vapaaehtoinen)">
+    <!-- Oma kategoria -nimi -->
+    <div id="svc-cat-custom-wrap" style="display:none;margin-top:-.5rem;margin-bottom:.75rem">
+      <label>Kategorian oma nimi *</label>
+      <input id="svc-cat-custom" placeholder="esim. Pilates, Jooga...">
+    </div>
+    <label>Palvelun kuvaus</label>
+    <textarea id="svc-desc" rows="3" placeholder="Lyhyt kuvaus asiakkaalle (vapaaehtoinen)"></textarea>
     <div class="form-row">
       <div>
-        <label>Kesto (min) *</label>
-        <input id="svc-dur" type="number" placeholder="60" min="5" step="5">
+        <label>Oletuskesto *</label>
+        <select id="svc-dur"></select>
       </div>
       <div>
-        <label>Hinta (€)</label>
-        <input id="svc-price" type="number" placeholder="35" min="0">
+        <label>Oletushinta</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input id="svc-price" type="number" placeholder="0,00" min="0" step="0.01" style="margin-bottom:0">
+          <span style="color:#64748b;font-size:.9rem;flex-shrink:0">€</span>
+        </div>
       </div>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-bottom:.75rem">
-      <input type="checkbox" id="svc-active" checked style="width:auto;margin-bottom:0"> Palvelu aktiivinen
-    </label>
+    <div class="form-row" style="margin-top:.5rem">
+      <div>
+        <label>ALV</label>
+        <select id="svc-alv">
+          <option value="0">0 %</option>
+          <option value="10">10 %</option>
+          <option value="14">14 %</option>
+          <option value="24">24 %</option>
+          <option value="25.5" selected>25,5 %</option>
+        </select>
+      </div>
+      <div></div>
+    </div>
+    <div style="margin-top:.25rem;margin-bottom:.75rem">
+      <div style="font-size:.8rem;font-weight:600;color:#374151;margin-bottom:.5rem">Näkyvyys</div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin-bottom:.4rem">
+        <input type="checkbox" id="svc-active" checked style="width:auto;margin-bottom:0;accent-color:#7c5cfc"> Näytä palvelu netissä
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:#64748b;padding-left:24px">
+        <input type="checkbox" id="svc-contact-only" style="width:auto;margin-bottom:0;accent-color:#7c5cfc"> Vaadi asiakkaita ottamaan yhteyttä palvelun varaamiseksi
+      </label>
+    </div>
     <div class="err-box" id="svc-err"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeSvcModal()">Peruuta</button>
@@ -703,6 +730,34 @@ async function loadServices() {
 
 function updateCatDatalist() { /* kategoriat ovat valmiiksi select-valikossa */ }
 
+function buildDurSelect() {
+  const opts = [];
+  for (let m = 5; m <= 480; m += 5) {
+    const h = Math.floor(m/60), min = m%60;
+    const label = h > 0 ? (min > 0 ? `${h}:${String(min).padStart(2,'0')}` : `${h}:00`) : `0:${String(min).padStart(2,'0')}`;
+    opts.push(`<option value="${m}">${label}</option>`);
+  }
+  document.getElementById('svc-dur').innerHTML = opts.join('');
+  document.getElementById('svc-dur').value = '60';
+}
+
+function onCatChange() {
+  const val = document.getElementById('svc-cat').value;
+  const isOma = val.startsWith('Oma kategoria');
+  const wrap = document.getElementById('svc-cat-custom-wrap');
+  wrap.style.display = isOma ? '' : 'none';
+  if (!isOma) document.getElementById('svc-cat-custom').value = '';
+}
+
+function getEffectiveCat() {
+  const val = document.getElementById('svc-cat').value;
+  if (val.startsWith('Oma kategoria')) {
+    const custom = document.getElementById('svc-cat-custom').value.trim();
+    return custom || val;
+  }
+  return val;
+}
+
 function renderServices() {
   const container = document.getElementById('svc-list-container');
   const svcs = _services.filter(s => _svcTab==='palvelut' ? true : false); // only palvelut for now
@@ -764,20 +819,41 @@ async function moveSvc(id, dir) {
 
 async function openSvcModal(id) {
   document.getElementById('svc-err').style.display='none';
+  buildDurSelect();
   if (id) {
     const s = _services.find(x => x.id===id);
     document.getElementById('svc-id').value = s.id;
     document.getElementById('svc-name').value = s.name;
-    document.getElementById('svc-cat').value = s.category||'';
+    // Oma kategoria: tarkista onko tallennettu mukautettu nimi
+    const catSel = document.getElementById('svc-cat');
+    const storedCat = s.category||'';
+    const isOmaOption = [...catSel.options].some(o => o.value === storedCat);
+    if (!isOmaOption && storedCat) {
+      // Mukautettu nimi — valitse "Oma kategoria 1" ja täytä oma nimi
+      catSel.value = 'Oma kategoria 1';
+      document.getElementById('svc-cat-custom').value = storedCat;
+    } else {
+      catSel.value = storedCat;
+      document.getElementById('svc-cat-custom').value = '';
+    }
+    onCatChange();
     document.getElementById('svc-desc').value = s.description||'';
     document.getElementById('svc-dur').value = s.duration_min;
-    document.getElementById('svc-price').value = s.price_cents ? s.price_cents/100 : '';
+    document.getElementById('svc-price').value = s.price_cents ? (s.price_cents/100).toFixed(2) : '';
     document.getElementById('svc-active').checked = !!s.is_active;
     document.getElementById('svc-modal-title').textContent = 'Muokkaa palvelua';
   } else {
-    ['svc-id','svc-name','svc-cat','svc-desc','svc-dur','svc-price'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('svc-id').value='';
+    document.getElementById('svc-name').value='';
+    document.getElementById('svc-cat').value='';
+    document.getElementById('svc-cat-custom').value='';
+    document.getElementById('svc-desc').value='';
+    document.getElementById('svc-dur').value='60';
+    document.getElementById('svc-price').value='';
     document.getElementById('svc-active').checked=true;
-    document.getElementById('svc-modal-title').textContent = 'Lisää palvelu';
+    document.getElementById('svc-contact-only').checked=false;
+    document.getElementById('svc-cat-custom-wrap').style.display='none';
+    document.getElementById('svc-modal-title').textContent = 'Luo uusi palvelu';
   }
   document.getElementById('svc-modal').classList.add('open');
 }
@@ -786,7 +862,7 @@ function closeSvcModal() { document.getElementById('svc-modal').classList.remove
 async function saveSvc() {
   const id      = document.getElementById('svc-id').value;
   const name    = document.getElementById('svc-name').value.trim();
-  const cat     = document.getElementById('svc-cat').value.trim();
+  const cat     = getEffectiveCat();
   const desc    = document.getElementById('svc-desc').value.trim();
   const dur     = parseInt(document.getElementById('svc-dur').value);
   const price   = document.getElementById('svc-price').value;
@@ -794,6 +870,9 @@ async function saveSvc() {
   const errEl   = document.getElementById('svc-err');
   errEl.style.display='none';
   if (!name || !dur) { errEl.textContent='Nimi ja kesto ovat pakollisia'; errEl.style.display='block'; return; }
+  if (document.getElementById('svc-cat').value.startsWith('Oma kategoria') && !document.getElementById('svc-cat-custom').value.trim()) {
+    errEl.textContent='Anna kategorian oma nimi'; errEl.style.display='block'; return;
+  }
 
   const body = {name,duration_min:dur,price_cents:price?Math.round(parseFloat(price)*100):null,
     description:desc||null,is_active:active,category:cat||null,sort_order:0};
