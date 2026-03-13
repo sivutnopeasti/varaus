@@ -50,6 +50,19 @@
   .ok-sub{color:#64748b;font-size:0.9rem;line-height:1.6}
   .loader{text-align:center;padding:2rem;color:#94a3b8}
   .err-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:0.75rem 1rem;color:#b91c1c;font-size:0.88rem;margin-bottom:1rem}
+  .addon-section{margin-top:.75rem;padding:1rem;background:#f8fafc;border-radius:10px;border:1px solid #e8eaf0}
+  .addon-section-title{font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;text-align:center;position:relative;margin-bottom:.75rem}
+  .addon-section-title::before,.addon-section-title::after{content:'';position:absolute;top:50%;width:35%;height:1px;background:#e8eaf0}
+  .addon-section-title::before{left:0}.addon-section-title::after{right:0}
+  .addon-item{display:flex;align-items:center;justify-content:space-between;padding:.65rem .75rem;border:1.5px solid #e8eaf0;border-radius:8px;cursor:pointer;margin-bottom:.4rem;transition:.15s;background:#fff;user-select:none}
+  .addon-item:hover{border-color:#2563eb;background:#eff6ff}
+  .addon-item.sel{border-color:#2563eb;background:#eff6ff}
+  .addon-item-left{display:flex;align-items:center;gap:.6rem}
+  .addon-check{width:18px;height:18px;border-radius:4px;border:2px solid #cbd5e1;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;transition:.15s}
+  .addon-item.sel .addon-check{background:#2563eb;border-color:#2563eb;color:#fff}
+  .addon-name{font-size:.9rem;font-weight:600}
+  .addon-meta{font-size:.78rem;color:#64748b}
+  .addon-price{font-weight:700;color:#2563eb;font-size:.9rem;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -65,6 +78,11 @@
   <div class="step active" id="step1">
     <div class="step-title">Valitse palvelu</div>
     <div class="service-list" id="service-list"><div class="loader">Ladataan...</div></div>
+    <div class="addon-section" id="addon-section" style="display:none">
+      <div class="addon-section-title">Lisäpalvelut</div>
+      <div id="addon-list"></div>
+    </div>
+    <button class="btn" id="step1-next" style="display:none;margin-top:1rem" onclick="goStep(2)">Jatka →</button>
   </div>
 
   <!-- Vaihe 2: Valitse päivä -->
@@ -118,7 +136,7 @@
 const slug = new URLSearchParams(location.search).get('yritys');
 if (!slug) { document.body.innerHTML = '<p style="padding:2rem;color:#b91c1c">Virheellinen URL – yritystunnus puuttuu.</p>'; }
 
-let bizData = null, selService = null, selDate = null, selTime = null;
+let bizData = null, selService = null, selDate = null, selTime = null, selAddons = [];
 let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 
 const FI_MONTHS = ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu','Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'];
@@ -136,9 +154,10 @@ async function init() {
 
 function renderServices() {
   const el = document.getElementById('service-list');
-  if (!bizData.services.length) { el.innerHTML = '<p style="color:#94a3b8">Ei varattavia palveluja.</p>'; return; }
-  el.innerHTML = bizData.services.map(s => `
-    <div class="service-card" onclick="selectService(${s.id})">
+  const main = bizData.services.filter(s => !s.is_addon);
+  if (!main.length) { el.innerHTML = '<p style="color:#94a3b8">Ei varattavia palveluja.</p>'; return; }
+  el.innerHTML = main.map(s => `
+    <div class="service-card" id="scard-${s.id}" onclick="selectService(${s.id})">
       <div>
         <div class="service-name">${s.name}</div>
         <div class="service-meta">${s.duration_min} min${s.description ? ' · ' + s.description : ''}</div>
@@ -149,9 +168,47 @@ function renderServices() {
 
 function selectService(id) {
   selService = bizData.services.find(s => s.id === id);
+  selAddons = [];
   document.querySelectorAll('.service-card').forEach(c => c.classList.remove('sel'));
-  event.currentTarget.classList.add('sel');
-  setTimeout(() => goStep(2), 200);
+  document.getElementById('scard-' + id).classList.add('sel');
+
+  // Find add-ons for this service's category
+  const addons = bizData.services.filter(s => s.is_addon && s.addon_category === selService.category);
+  const addonSection = document.getElementById('addon-section');
+  const nextBtn = document.getElementById('step1-next');
+
+  if (addons.length) {
+    document.getElementById('addon-list').innerHTML = addons.map(a => `
+      <div class="addon-item" id="addon-${a.id}" onclick="toggleAddon(${a.id})">
+        <div class="addon-item-left">
+          <div class="addon-check" id="acheck-${a.id}">✓</div>
+          <div>
+            <div class="addon-name">${a.name}</div>
+            <div class="addon-meta">${a.duration_min} min</div>
+          </div>
+        </div>
+        <div class="addon-price">${a.price_cents ? (a.price_cents/100).toFixed(0)+' €' : ''}</div>
+      </div>`).join('');
+    addonSection.style.display = '';
+    nextBtn.style.display = '';
+  } else {
+    addonSection.style.display = 'none';
+    nextBtn.style.display = 'none';
+    setTimeout(() => goStep(2), 200);
+  }
+}
+
+function toggleAddon(id) {
+  const addon = bizData.services.find(s => s.id === id);
+  const el = document.getElementById('addon-' + id);
+  const idx = selAddons.findIndex(a => a.id === id);
+  if (idx >= 0) {
+    selAddons.splice(idx, 1);
+    el.classList.remove('sel');
+  } else {
+    selAddons.push(addon);
+    el.classList.add('sel');
+  }
 }
 
 function goStep(n) {
@@ -215,11 +272,15 @@ function selectTime(t) {
 
 function renderSummary() {
   const [y,m,d] = selDate.split('-');
-  document.getElementById('booking-summary').innerHTML =
-    `<strong>${bizData.name}</strong><br>` +
+  let html = `<strong>${bizData.name}</strong><br>` +
     `${selService.name} · ${selService.duration_min} min` +
-    (selService.price_cents ? ` · ${(selService.price_cents/100).toFixed(0)} €` : '') + '<br>' +
-    `${parseInt(d)}.${parseInt(m)}.${y} klo ${selTime}`;
+    (selService.price_cents ? ` · ${(selService.price_cents/100).toFixed(0)} €` : '') + '<br>';
+  if (selAddons.length) {
+    html += selAddons.map(a => `<span style="color:#64748b;font-size:.85rem">+ ${a.name}` +
+      (a.price_cents ? ` · ${(a.price_cents/100).toFixed(0)} €` : '') + '</span>').join('<br>') + '<br>';
+  }
+  html += `${parseInt(d)}.${parseInt(m)}.${y} klo ${selTime}`;
+  document.getElementById('booking-summary').innerHTML = html;
 }
 
 async function confirmBooking() {
@@ -240,7 +301,8 @@ async function confirmBooking() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ slug, palvelu_id: selService.id, date: selDate, start_time: selTime,
-                           customer_name: name, customer_email: email, customer_phone: phone||null, notes: notes||null })
+                           customer_name: name, customer_email: email, customer_phone: phone||null,
+                           notes: [notes, selAddons.length ? 'Lisäpalvelut: ' + selAddons.map(a=>a.name).join(', ') : ''].filter(Boolean).join('\n') || null })
   });
   const data = await r.json();
   if (!r.ok) {
