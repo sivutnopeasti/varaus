@@ -542,6 +542,42 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
   </div>
 </div>
 
+<!-- Lisäpalvelu modal -->
+<div class="modal-bg" id="lisa-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="lisa-modal-title">Lisää lisäpalvelu</span>
+      <button class="modal-close" onclick="closeLisaModal()">✕</button>
+    </div>
+    <input type="hidden" id="lisa-id">
+    <input type="hidden" id="lisa-parent-cat">
+    <div style="display:flex;gap:.5rem;align-items:flex-end;margin-bottom:.75rem">
+      <div style="flex:1">
+        <label>Kopioi vanhasta palvelusta (valinnainen)</label>
+        <select id="lisa-copy-from" style="margin-bottom:0"></select>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="flex-shrink:0;margin-bottom:0" onclick="copyFromService()">Kopioi</button>
+    </div>
+    <label>Lisäpalvelun nimi</label>
+    <input id="lisa-name" placeholder="esim. Hiusten pesu, Muotoilutuote...">
+    <label>Kuvaus (valinnainen)</label>
+    <input id="lisa-desc" placeholder="Lyhyt kuvaus lisäpalvelusta">
+    <div class="form-row">
+      <div><label>Kesto</label><select id="lisa-dur"></select></div>
+      <div><label>Hinta (€)</label><input id="lisa-price" type="number" min="0" step="0.01" placeholder="0,00"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;margin-bottom:.75rem">
+      <input type="checkbox" id="lisa-active" checked style="width:auto;margin-bottom:0"> Näkyvissä
+    </label>
+    <div class="err-box" id="lisa-err"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="lisa-del-btn" style="display:none;margin-right:auto" onclick="deleteLisapalvelu()">Poista</button>
+      <button class="btn btn-ghost" onclick="closeLisaModal()">Peruuta</button>
+      <button class="btn" onclick="saveLisapalvelu()">Tallenna</button>
+    </div>
+  </div>
+</div>
+
 <script src="config.js"></script>
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
@@ -1114,8 +1150,8 @@ function getEffectiveCat() {
 function renderServices() {
   const container = document.getElementById('svc-list-container');
 
-  if (_svcTab !== 'palvelut') {
-    container.innerHTML = '<div class="empty">Ei lisäpalveluja.</div>';
+  if (_svcTab === 'lisapalvelut') {
+    renderLisapalvelut(container);
     return;
   }
 
@@ -1225,6 +1261,162 @@ function renderServices() {
   });
 
   container.innerHTML = html || '<div class="empty">Ei palveluja.</div>';
+}
+
+// ── Lisäpalvelut ──────────────────────────────────────────────────────────────
+let _lisaCatCollapse = {};
+
+function renderLisapalvelut(container) {
+  // Get all add-ons from _services
+  const addonByCat = {};
+  _services.filter(s => s.is_addon).forEach(s => {
+    const cat = s.addon_category || '_noCat';
+    if (!addonByCat[cat]) addonByCat[cat] = [];
+    addonByCat[cat].push(s);
+  });
+
+  // Use template category order
+  const tplCatOrder = [];
+  TEMPLATE_SERVICES.forEach(t => { if (!tplCatOrder.includes(t.cat)) tplCatOrder.push(t.cat); });
+  // Add any DB-only addon categories
+  Object.keys(addonByCat).forEach(c => { if (!tplCatOrder.includes(c) && c !== '_noCat') tplCatOrder.push(c); });
+
+  let html = '';
+  tplCatOrder.forEach((cat, idx) => {
+    const addons = (addonByCat[cat] || []).sort((a,b) => a.sort_order - b.sort_order);
+    if (!(cat in _lisaCatCollapse)) _lisaCatCollapse[cat] = addons.length > 0;
+    const isOpen = !!_lisaCatCollapse[cat];
+    const badge = addons.length ? `<span class="svc-cat-badge">${addons.length}</span>` : '';
+
+    html += `<div class="svc-cat-section">
+      <div class="svc-cat-header" onclick="toggleLisaCat('${cat.replace(/'/g,"\\'")}',${idx})">
+        <span class="svc-cat-chev" id="lisa-chev-${idx}">${isOpen ? '▾' : '›'}</span>
+        <span class="svc-cat-name">${cat}</span>
+        ${badge}
+      </div>
+      <div id="lisa-cat-${idx}" style="${isOpen ? '' : 'display:none'}">`;
+
+    if (addons.length) {
+      html += `<table class="svc-table"><thead><tr>
+        <th>Lisäpalvelun nimi</th><th>Kesto</th><th>Hinta</th><th style="width:60px"></th>
+      </tr></thead><tbody>`;
+      addons.forEach(s => {
+        html += `<tr>
+          <td class="svc-name-cell">${s.name}${!s.is_active?'<span style="font-size:.7rem;color:#94a3b8;margin-left:6px">(piilotettu)</span>':''}</td>
+          <td>${s.duration_min} min</td>
+          <td style="white-space:nowrap">${s.price_cents?(s.price_cents/100).toFixed(2)+' €':''}</td>
+          <td><button class="btn btn-sm btn-ghost" onclick="openLisaModal('${cat.replace(/'/g,"\\'")}',${s.id})">✏</button></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    html += `<div style="padding:.6rem .75rem">
+      <button class="btn btn-ghost btn-sm" onclick="openLisaModal('${cat.replace(/'/g,"\\'")}')">+ Luo uusi lisäpalvelu</button>
+    </div></div></div>`;
+  });
+
+  container.innerHTML = html || '<div class="empty">Ei kategorioita.</div>';
+}
+
+function toggleLisaCat(cat, idx) {
+  const body = document.getElementById('lisa-cat-' + idx);
+  const chev = document.getElementById('lisa-chev-' + idx);
+  _lisaCatCollapse[cat] = !_lisaCatCollapse[cat];
+  body.style.display = _lisaCatCollapse[cat] ? '' : 'none';
+  chev.textContent = _lisaCatCollapse[cat] ? '▾' : '›';
+}
+
+function buildLisaDurSelect() {
+  const opts = [];
+  for (let m = 5; m <= 480; m += 5) {
+    const h = Math.floor(m/60), min = m%60;
+    const label = h > 0 ? (min > 0 ? `${h}:${String(min).padStart(2,'0')}` : `${h}:00`) : `0:${String(min).padStart(2,'0')}`;
+    opts.push(`<option value="${m}">${label}</option>`);
+  }
+  document.getElementById('lisa-dur').innerHTML = opts.join('');
+  document.getElementById('lisa-dur').value = '15';
+}
+
+function buildLisaCopyFrom() {
+  const mainServices = _services.filter(s => !s.is_addon && s.is_active);
+  const opts = ['<option value="">– valitse kopiointilähde –</option>'];
+  mainServices.forEach(s => {
+    opts.push(`<option value="${s.id}">${s.name}${s.category?' ('+s.category+')':''}</option>`);
+  });
+  document.getElementById('lisa-copy-from').innerHTML = opts.join('');
+}
+
+function openLisaModal(cat, id) {
+  buildLisaDurSelect();
+  buildLisaCopyFrom();
+  document.getElementById('lisa-err').style.display = 'none';
+  document.getElementById('lisa-parent-cat').value = cat;
+  document.getElementById('lisa-del-btn').style.display = 'none';
+  if (id) {
+    const s = _services.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('lisa-id').value = s.id;
+    document.getElementById('lisa-name').value = s.name;
+    document.getElementById('lisa-desc').value = s.description || '';
+    document.getElementById('lisa-dur').value = s.duration_min;
+    document.getElementById('lisa-price').value = s.price_cents ? (s.price_cents/100).toFixed(2) : '';
+    document.getElementById('lisa-active').checked = !!s.is_active;
+    document.getElementById('lisa-modal-title').textContent = 'Muokkaa lisäpalvelua';
+    document.getElementById('lisa-del-btn').style.display = '';
+  } else {
+    document.getElementById('lisa-id').value = '';
+    document.getElementById('lisa-name').value = '';
+    document.getElementById('lisa-desc').value = '';
+    document.getElementById('lisa-dur').value = '15';
+    document.getElementById('lisa-price').value = '';
+    document.getElementById('lisa-active').checked = true;
+    document.getElementById('lisa-modal-title').textContent = `Uusi lisäpalvelu – ${cat}`;
+  }
+  document.getElementById('lisa-modal').classList.add('open');
+}
+
+function closeLisaModal() { document.getElementById('lisa-modal').classList.remove('open'); }
+
+function copyFromService() {
+  const id = parseInt(document.getElementById('lisa-copy-from').value);
+  if (!id) return;
+  const s = _services.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('lisa-name').value = s.name;
+  document.getElementById('lisa-desc').value = s.description || '';
+  document.getElementById('lisa-dur').value = s.duration_min;
+  document.getElementById('lisa-price').value = s.price_cents ? (s.price_cents/100).toFixed(2) : '';
+}
+
+async function saveLisapalvelu() {
+  const id        = document.getElementById('lisa-id').value;
+  const name      = document.getElementById('lisa-name').value.trim();
+  const desc      = document.getElementById('lisa-desc').value.trim();
+  const dur       = parseInt(document.getElementById('lisa-dur').value);
+  const price     = document.getElementById('lisa-price').value;
+  const active    = document.getElementById('lisa-active').checked;
+  const parentCat = document.getElementById('lisa-parent-cat').value;
+  const errEl     = document.getElementById('lisa-err');
+  errEl.style.display = 'none';
+  if (!name || !dur) { errEl.textContent='Nimi ja kesto ovat pakollisia'; errEl.style.display='block'; return; }
+
+  const body = {name, duration_min:dur, price_cents:price?Math.round(parseFloat(price)*100):null,
+    description:desc||null, is_active:active, is_addon:true, addon_category:parentCat,
+    category:parentCat, sort_order:0};
+  const r = id
+    ? await fetch(`${API}/api/admin/palvelut/${id}`, {method:'PUT',headers:authHeaders(),body:JSON.stringify(body)})
+    : await fetch(`${API}/api/admin/palvelut`,       {method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
+  if (!r.ok) { const d=await r.json(); errEl.textContent=d.error; errEl.style.display='block'; return; }
+  closeLisaModal();
+  loadServices();
+}
+
+async function deleteLisapalvelu() {
+  const id = document.getElementById('lisa-id').value;
+  if (!id || !confirm('Poistetaanko lisäpalvelu?')) return;
+  await fetch(`${API}/api/admin/palvelut/${id}`, {method:'DELETE',headers:authHeaders()});
+  closeLisaModal();
+  loadServices();
 }
 
 function toggleCat(renderedIdx) {
