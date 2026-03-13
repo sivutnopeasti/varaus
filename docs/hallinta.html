@@ -96,6 +96,11 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
 .booking-table td{padding:.65rem .75rem;border-bottom:1px solid #f1f5f9;vertical-align:top}
 .booking-table tr:hover td{background:#f8fafc}
 
+/* ── Asiakkaat ── */
+.asiak-search{width:100%;padding:9px 12px;border:1.5px solid #e8eaf0;border-radius:8px;font-size:.9rem;margin-bottom:.5rem;outline:none;font-family:inherit}
+.asiak-search:focus{border-color:#7c5cfc}
+.asiak-count{font-size:.82rem;color:#94a3b8;margin-bottom:.75rem}
+
 /* ── Palvelut ── */
 .svc-tabs{display:flex;gap:0;border-bottom:2px solid #e8eaf0;margin-bottom:1rem}
 .svc-tab{padding:.5rem 1rem;font-size:.88rem;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
@@ -177,6 +182,7 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
       <button class="nav-item" onclick="showPanel('aukioloajat')">Aukioloajat</button>
       <button class="nav-item" onclick="showPanel('asetukset')">Asetukset</button>
       <button class="nav-item" onclick="showPanel('omattiedot')">Omat tiedot</button>
+      <button class="nav-item" onclick="showPanel('asiakkaat')">Asiakkaat</button>
     </div>
     <div class="topbar-right">
       <span class="user-chip" id="top-user"></span>
@@ -363,6 +369,23 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
     </div>
   </div>
 </div>
+
+  <!-- Asiakkaat -->
+  <div class="panel" id="panel-asiakkaat">
+    <div class="content">
+      <div class="card">
+        <div class="card-title">Asiakkaat</div>
+        <input class="asiak-search" id="asiak-search" placeholder="Hae nimellä, sähköpostilla tai puhelimella..." oninput="filterAsiakkaat(this.value)">
+        <div class="asiak-count" id="asiak-count"></div>
+        <table class="booking-table">
+          <thead><tr>
+            <th>Nimi</th><th>Sähköposti</th><th>Puhelin</th><th style="text-align:center">Varauksia</th><th>Viimeisin</th>
+          </tr></thead>
+          <tbody id="asiak-tbody"><tr><td colspan="5" style="color:#94a3b8;text-align:center;padding:2rem">Ladataan...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
 <!-- Varauksen tiedot modal -->
 <div class="modal-bg" id="booking-modal">
@@ -854,13 +877,56 @@ function showApp() {
 // ── Navigation ───────────────────────────────────────────────────────────────
 function showPanel(name) {
   document.querySelectorAll('.nav-item').forEach((b,i) => {
-    const names = ['kalenteri','palvelut','aukioloajat','asetukset','omattiedot'];
+    const names = ['kalenteri','palvelut','aukioloajat','asetukset','omattiedot','asiakkaat'];
     b.classList.toggle('active', names[i] === name);
   });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(`panel-${name}`).classList.add('active');
   if (name === 'kalenteri') renderCalendar();
   if (name === 'omattiedot') loadOmatTiedot();
+  if (name === 'asiakkaat') renderAsiakkaat();
+}
+
+// ── Asiakkaat ────────────────────────────────────────────────────────────────
+let _asiakkaat = [];
+
+async function renderAsiakkaat() {
+  const tbody = document.getElementById('asiak-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="color:#94a3b8;text-align:center;padding:2rem">Ladataan...</td></tr>';
+  const r = await fetch(`${API}/api/admin/asiakkaat`, {headers: authHeaders()});
+  if (r.status === 401) { doLogout(); return; }
+  _asiakkaat = await r.json();
+  document.getElementById('asiak-search').value = '';
+  renderAsiakkaatRows(_asiakkaat);
+}
+
+function filterAsiakkaat(q) {
+  const ql = q.toLowerCase();
+  renderAsiakkaatRows(_asiakkaat.filter(a =>
+    a.customer_name.toLowerCase().includes(ql) ||
+    (a.customer_email||'').toLowerCase().includes(ql) ||
+    (a.customer_phone||'').toLowerCase().includes(ql)
+  ));
+}
+
+function renderAsiakkaatRows(list) {
+  const count = document.getElementById('asiak-count');
+  count.textContent = list.length + ' asiakasta';
+  const tbody = document.getElementById('asiak-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:#94a3b8;text-align:center;padding:2rem">Ei tuloksia</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(a => {
+    const [y,m,d] = a.last_booking.split('-');
+    return `<tr>
+      <td><strong>${a.customer_name}</strong></td>
+      <td><a href="mailto:${a.customer_email}" style="color:#7c5cfc">${a.customer_email}</a></td>
+      <td style="color:#64748b">${a.customer_phone||'–'}</td>
+      <td style="text-align:center;font-weight:600">${a.booking_count}</td>
+      <td style="color:#64748b">${parseInt(d)}.${parseInt(m)}.${y}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ── Kalenteri ────────────────────────────────────────────────────────────────
