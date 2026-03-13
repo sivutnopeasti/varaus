@@ -132,6 +132,20 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
 .avail-row input[type="time"]{margin-bottom:0;width:100px}
 
 /* ── Asetukset ── */
+
+/* ── Omat tiedot ── */
+.cal-color-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;margin-bottom:.75rem}
+.cal-color-swatch{width:28px;height:28px;border-radius:6px;border:3px solid transparent;cursor:pointer;transition:.15s;flex-shrink:0}
+.cal-color-swatch.active{border-color:#1e3a5f;transform:scale(1.15)}
+.profile-row{display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem}
+.profile-avatar{width:68px;height:68px;border-radius:50%;background:#ede9fe;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:#7c5cfc;flex-shrink:0;overflow:hidden}
+.profile-avatar img{width:100%;height:100%;object-fit:cover}
+.char-hint{font-size:.72rem;color:#94a3b8;text-align:right;margin-top:-10px;margin-bottom:.75rem}
+.pw-section{border-top:1px solid #f1f5f9;padding-top:1rem;margin-top:1rem}
+.notif-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-size:.88rem}
+.notif-row input[type="checkbox"]{width:auto;margin-bottom:0}
+.notif-group{margin-bottom:1.25rem}
+.notif-group-label{font-size:.75rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}
 </style>
 </head>
 <body>
@@ -162,6 +176,7 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
       <button class="nav-item" onclick="showPanel('palvelut')">Palvelut</button>
       <button class="nav-item" onclick="showPanel('aukioloajat')">Aukioloajat</button>
       <button class="nav-item" onclick="showPanel('asetukset')">Asetukset</button>
+      <button class="nav-item" onclick="showPanel('omattiedot')">Omat tiedot</button>
     </div>
     <div class="topbar-right">
       <span class="user-chip" id="top-user"></span>
@@ -232,6 +247,119 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
         <div class="err-box" id="settings-err"></div>
         <button class="btn" onclick="saveSettings()">Tallenna</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Omat tiedot -->
+  <div class="panel" id="panel-omattiedot">
+    <div class="content">
+
+      <!-- Profiili -->
+      <div class="card">
+        <div class="card-title">Profiili</div>
+        <div class="profile-row">
+          <div class="profile-avatar" id="ot-avatar-preview">?</div>
+          <div>
+            <label style="margin-bottom:4px">Profiilikuva</label>
+            <input type="file" id="ot-photo" accept="image/*" onchange="previewProfilePhoto(this)" style="width:auto;margin-bottom:0;font-size:.82rem">
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label>Nimi <span style="color:#ef4444">*</span></label>
+            <input id="ot-name" placeholder="Etunimi Sukunimi" maxlength="80" oninput="charCount('ot-name','ot-name-count',80)">
+            <div class="char-hint"><span id="ot-name-count">0</span>/80</div>
+          </div>
+          <div>
+            <label>Julkinen nimi</label>
+            <input id="ot-public-name" placeholder="esim. Anne" maxlength="40" oninput="charCount('ot-public-name','ot-pn-count',40)">
+            <div class="char-hint"><span id="ot-pn-count">0</span>/40</div>
+          </div>
+        </div>
+        <label>Työnimike</label>
+        <input id="ot-title" placeholder="esim. Parturi-kampaaja" maxlength="80" oninput="charCount('ot-title','ot-title-count',80)">
+        <div class="char-hint"><span id="ot-title-count">0</span>/80</div>
+        <label>Tiedote asiakkaille <span style="font-size:.75rem;color:#94a3b8;font-weight:400">(näkyy varaussivulla)</span></label>
+        <textarea id="ot-message" rows="3" maxlength="400" placeholder="Esim. poissaoloista, kampanjatarjouksista..." oninput="charCount('ot-message','ot-msg-count',400)"></textarea>
+        <div class="char-hint"><span id="ot-msg-count">0</span>/400</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;margin-bottom:1rem">
+          <input type="checkbox" id="ot-hidden" style="width:auto;margin-bottom:0">
+          Piilota varaussivulta
+        </label>
+        <div class="ok-box-sm" id="ot-ok">Tallennettu!</div>
+        <div class="err-box" id="ot-err"></div>
+        <button class="btn" onclick="saveOmatTiedot()">Tallenna</button>
+      </div>
+
+      <!-- Varausasetukset -->
+      <div class="card">
+        <div class="card-title">Varausasetukset</div>
+        <label>Kalenterin teemaväri</label>
+        <div class="cal-color-swatches" id="ot-color-swatches"></div>
+        <div class="form-row">
+          <div>
+            <label>Varaus ei ole enää avoinna</label>
+            <select id="ot-close-before">
+              <option value="0">Ei rajoitusta</option>
+              <option value="15">15 min ennen</option>
+              <option value="30">30 min ennen</option>
+              <option value="60">1 h ennen</option>
+              <option value="120">2 h ennen</option>
+              <option value="240">4 h ennen</option>
+              <option value="1440">1 vrk ennen</option>
+              <option value="2880">2 vrk ennen</option>
+            </select>
+          </div>
+          <div>
+            <label>Muistutussähköposti asiakkaalle</label>
+            <select id="ot-reminder-email">
+              <option value="0">Ei muistutusta</option>
+              <option value="2">2 h ennen</option>
+              <option value="6">6 h ennen</option>
+              <option value="24" selected>24 h ennen</option>
+              <option value="48">48 h ennen</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn" onclick="saveVarausAsetukset()">Tallenna</button>
+        <div class="ok-box-sm" id="ot-va-ok" style="margin-top:.5rem">Tallennettu!</div>
+      </div>
+
+      <!-- Ilmoitukset -->
+      <div class="card">
+        <div class="card-title">Ilmoitukset</div>
+        <div class="notif-group">
+          <div class="notif-group-label">Uusi varaus netistä</div>
+          <label class="notif-row"><input type="checkbox" id="notif-new-email" checked> Sähköposti</label>
+        </div>
+        <div class="notif-group">
+          <div class="notif-group-label">Varaus peruutettu</div>
+          <label class="notif-row"><input type="checkbox" id="notif-cancel-email" checked> Sähköposti</label>
+        </div>
+        <button class="btn" onclick="saveIlmoitukset()">Tallenna</button>
+        <div class="ok-box-sm" id="ot-notif-ok" style="margin-top:.5rem">Tallennettu!</div>
+      </div>
+
+      <!-- Tili -->
+      <div class="card">
+        <div class="card-title">Tili</div>
+        <button class="btn btn-ghost btn-sm" onclick="togglePwForm()">Vaihda salasana</button>
+        <div class="pw-section" id="pw-form" style="display:none">
+          <label>Nykyinen salasana</label>
+          <input type="password" id="pw-current" autocomplete="current-password">
+          <label>Uusi salasana</label>
+          <input type="password" id="pw-new" autocomplete="new-password">
+          <label>Vahvista uusi salasana</label>
+          <input type="password" id="pw-confirm" autocomplete="new-password">
+          <div class="err-box" id="pw-err"></div>
+          <div class="ok-box-sm" id="pw-ok">Salasana vaihdettu!</div>
+          <button class="btn btn-sm" onclick="saveNewPassword()">Vaihda salasana</button>
+        </div>
+        <div style="margin-top:1rem">
+          <button class="btn btn-ghost btn-sm" onclick="doLogout()">Kirjaudu ulos kaikilta laitteilta</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -690,12 +818,13 @@ function showApp() {
 // ── Navigation ───────────────────────────────────────────────────────────────
 function showPanel(name) {
   document.querySelectorAll('.nav-item').forEach((b,i) => {
-    const names = ['kalenteri','palvelut','aukioloajat','asetukset'];
+    const names = ['kalenteri','palvelut','aukioloajat','asetukset','omattiedot'];
     b.classList.toggle('active', names[i] === name);
   });
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(`panel-${name}`).classList.add('active');
   if (name === 'kalenteri') renderCalendar();
+  if (name === 'omattiedot') loadOmatTiedot();
 }
 
 // ── Kalenteri ────────────────────────────────────────────────────────────────
@@ -1323,6 +1452,142 @@ async function saveAvailability() {
   const ok = document.getElementById('avail-ok');
   ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
   loadAvailability();
+}
+
+// ── Omat tiedot ──────────────────────────────────────────────────────────────
+const OT_COLORS = [
+  '#c084fc','#e879f9','#f9a8d4','#fca5a5','#fb923c',
+  '#fde68a','#86efac','#34d399','#67e8f9','#38bdf8',
+  '#93c5fd','#818cf8','#a78bfa','#f472b6','#94a3b8',
+];
+
+function charCount(inputId, countId, max) {
+  const val = document.getElementById(inputId).value.length;
+  document.getElementById(countId).textContent = val;
+}
+
+function loadOmatTiedot() {
+  const d = JSON.parse(localStorage.getItem('varaus_omattiedot') || '{}');
+  const jwt = parseJWT(TOKEN);
+  document.getElementById('ot-name').value        = d.name        || jwt?.owner_name || '';
+  document.getElementById('ot-public-name').value = d.public_name || '';
+  document.getElementById('ot-title').value       = d.title       || '';
+  document.getElementById('ot-message').value     = d.message     || '';
+  document.getElementById('ot-hidden').checked    = !!d.hidden;
+  document.getElementById('ot-close-before').value   = d.close_before  ?? '15';
+  document.getElementById('ot-reminder-email').value = d.reminder_email ?? '24';
+  document.getElementById('notif-new-email').checked    = d.notif_new_email    !== false;
+  document.getElementById('notif-cancel-email').checked = d.notif_cancel_email !== false;
+  ['ot-name','ot-public-name','ot-title','ot-message'].forEach(id => {
+    const el = document.getElementById(id);
+    const max = parseInt(el.getAttribute('maxlength'));
+    const countId = {'ot-name':'ot-name-count','ot-public-name':'ot-pn-count','ot-title':'ot-title-count','ot-message':'ot-msg-count'}[id];
+    if (countId) document.getElementById(countId).textContent = el.value.length;
+  });
+  // Avatar initials
+  const name = document.getElementById('ot-name').value;
+  const avatar = document.getElementById('ot-avatar-preview');
+  if (d.photoSrc) {
+    avatar.innerHTML = `<img src="${d.photoSrc}">`;
+  } else {
+    const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || '?';
+    avatar.textContent = initials;
+  }
+  // Color swatches
+  const selected = d.cal_color || OT_COLORS[0];
+  const swatchContainer = document.getElementById('ot-color-swatches');
+  swatchContainer.innerHTML = OT_COLORS.map(c =>
+    `<button type="button" class="cal-color-swatch${c===selected?' active':''}"
+       style="background:${c}" title="${c}"
+       onclick="selectCalColor('${c}')"></button>`
+  ).join('');
+}
+
+function selectCalColor(color) {
+  document.querySelectorAll('.cal-color-swatch').forEach(el =>
+    el.classList.toggle('active', el.style.background === color || el.style.backgroundColor === color));
+  const d = JSON.parse(localStorage.getItem('varaus_omattiedot') || '{}');
+  d.cal_color = color;
+  localStorage.setItem('varaus_omattiedot', JSON.stringify(d));
+}
+
+function previewProfilePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('ot-avatar-preview').innerHTML = `<img src="${e.target.result}">`;
+    const d = JSON.parse(localStorage.getItem('varaus_omattiedot') || '{}');
+    d.photoSrc = e.target.result;
+    localStorage.setItem('varaus_omattiedot', JSON.stringify(d));
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveOmatTiedot() {
+  const name = document.getElementById('ot-name').value.trim();
+  const errEl = document.getElementById('ot-err');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'Nimi on pakollinen'; errEl.style.display='block'; return; }
+  const d = JSON.parse(localStorage.getItem('varaus_omattiedot') || '{}');
+  d.name        = name;
+  d.public_name = document.getElementById('ot-public-name').value.trim();
+  d.title       = document.getElementById('ot-title').value.trim();
+  d.message     = document.getElementById('ot-message').value.trim();
+  d.hidden      = document.getElementById('ot-hidden').checked;
+  localStorage.setItem('varaus_omattiedot', JSON.stringify(d));
+  // Sync name to yritys API
+  fetch(`${API}/api/admin/yritys`, {method:'PUT',headers:authHeaders(),body:JSON.stringify({
+    name: document.getElementById('s-name').value || name,
+    owner_name: name,
+  })}).catch(()=>{});
+  document.getElementById('top-user').textContent = d.public_name || name;
+  const ok = document.getElementById('ot-ok');
+  ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
+}
+
+function saveVarausAsetukset() {
+  const d = JSON.parse(localStorage.getItem('varaus_omattiedot') || '{}');
+  d.close_before   = document.getElementById('ot-close-before').value;
+  d.reminder_email = document.getElementById('ot-reminder-email').value;
+  localStorage.setItem('varaus_omattiedot', JSON.stringify(d));
+  const ok = document.getElementById('ot-va-ok');
+  ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
+}
+
+function saveIlmoitukset() {
+  const d = JSON.parse(localStorage.getItem('varaus_omattiedot') || '{}');
+  d.notif_new_email    = document.getElementById('notif-new-email').checked;
+  d.notif_cancel_email = document.getElementById('notif-cancel-email').checked;
+  localStorage.setItem('varaus_omattiedot', JSON.stringify(d));
+  const ok = document.getElementById('ot-notif-ok');
+  ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
+}
+
+function togglePwForm() {
+  const form = document.getElementById('pw-form');
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+
+async function saveNewPassword() {
+  const current = document.getElementById('pw-current').value;
+  const next    = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const errEl   = document.getElementById('pw-err');
+  const okEl    = document.getElementById('pw-ok');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if (!current || !next) { errEl.textContent='Täytä kaikki kentät'; errEl.style.display='block'; return; }
+  if (next !== confirm)  { errEl.textContent='Salasanat eivät täsmää'; errEl.style.display='block'; return; }
+  if (next.length < 8)   { errEl.textContent='Salasanan tulee olla vähintään 8 merkkiä'; errEl.style.display='block'; return; }
+  const r = await fetch(`${API}/api/auth/vaihda-salasana`, {
+    method:'POST', headers:authHeaders(),
+    body:JSON.stringify({current_password:current, new_password:next})
+  });
+  if (!r.ok) { const d=await r.json(); errEl.textContent=d.error||'Virhe salasanan vaihdossa'; errEl.style.display='block'; return; }
+  document.getElementById('pw-current').value='';
+  document.getElementById('pw-new').value='';
+  document.getElementById('pw-confirm').value='';
+  okEl.style.display='block'; setTimeout(()=>okEl.style.display='none', 3000);
 }
 
 // ── Asetukset ─────────────────────────────────────────────────────────────────
