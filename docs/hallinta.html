@@ -280,8 +280,75 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
     <label>Palvelun nimi *</label>
     <input id="svc-name" placeholder="esim. Leikkaus">
     <label>Kategoria</label>
-    <input id="svc-cat" placeholder="esim. Leikkaukset" list="cat-list">
-    <datalist id="cat-list"></datalist>
+    <select id="svc-cat">
+      <option value="">– valitse kategoria –</option>
+      <optgroup label="Hiuspalvelut">
+        <option>Leikkaukset</option>
+        <option>Värjäykset</option>
+        <option>Monivärit/raidat</option>
+        <option>Kasvivärit</option>
+        <option>Kampaukset ja meikit</option>
+        <option>Hiustenpidennykset ja permanentit</option>
+        <option>Ripset/kulmat</option>
+        <option>Hiushoidot</option>
+        <option>Parta</option>
+        <option>Päähieronnat</option>
+        <option>Muut hiuspalvelut</option>
+      </optgroup>
+      <optgroup label="Kauneudenhoito">
+        <option>Kasvohoidot</option>
+        <option>Kädet/kynnet</option>
+        <option>Jalkahoidot</option>
+        <option>Vartalohoidot</option>
+        <option>Ihokarvojen poisto</option>
+        <option>Lymfahoidot</option>
+        <option>Rusketukset</option>
+        <option>Hoitopaketit</option>
+        <option>Muut kauneuspalvelut</option>
+        <option>Harjoittelijahoidot</option>
+        <option>Microblading</option>
+        <option>Kestopigmentointi</option>
+      </optgroup>
+      <optgroup label="Hieronnat">
+        <option>Urheiluhieronta</option>
+        <option>Klassinen hieronta</option>
+        <option>Kuumakivihieronta</option>
+        <option>Lihaskalvohieronta</option>
+        <option>Muut hieronnat</option>
+      </optgroup>
+      <optgroup label="Hyvinvointi">
+        <option>Akupunktio</option>
+        <option>Fysioterapia</option>
+        <option>Jalkaterapia</option>
+        <option>Kiropraktiikka</option>
+        <option>Naprapatia</option>
+        <option>Osteopatia</option>
+        <option>Muut hyvinvointipalvelut</option>
+        <option>Luontaishoidot</option>
+      </optgroup>
+      <optgroup label="Muut">
+        <option>Tatuoinnit</option>
+        <option>Lävistykset</option>
+        <option>Personal training</option>
+        <option>Henkilökohtainen aika</option>
+      </optgroup>
+      <optgroup label="Omat kategoriat">
+        <option>Oma kategoria 1</option>
+        <option>Oma kategoria 2</option>
+        <option>Oma kategoria 3</option>
+        <option>Oma kategoria 4</option>
+        <option>Oma kategoria 5</option>
+        <option>Oma kategoria 6</option>
+        <option>Oma kategoria 7</option>
+        <option>Oma kategoria 8</option>
+        <option>Oma kategoria 9</option>
+        <option>Oma kategoria 10</option>
+        <option>Oma kategoria 11</option>
+        <option>Oma kategoria 12</option>
+        <option>Oma kategoria 13</option>
+        <option>Oma kategoria 14</option>
+      </optgroup>
+    </select>
     <label>Kuvaus</label>
     <input id="svc-desc" placeholder="Lyhyt kuvaus (vapaaehtoinen)">
     <div class="form-row">
@@ -634,10 +701,7 @@ async function loadServices() {
   updateCatDatalist();
 }
 
-function updateCatDatalist() {
-  const cats = [...new Set(_services.map(s => s.category).filter(Boolean))];
-  document.getElementById('cat-list').innerHTML = cats.map(c=>`<option value="${c}">`).join('');
-}
+function updateCatDatalist() { /* kategoriat ovat valmiiksi select-valikossa */ }
 
 function renderServices() {
   const container = document.getElementById('svc-list-container');
