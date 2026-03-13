@@ -114,6 +114,15 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
 .svc-desc-cell{color:#64748b;font-size:.82rem}
 .svc-order-btns{display:flex;gap:3px}
 .svc-activate-btn{background:#f8f9fa;color:#374151;border:1px solid #e0e0e0;border-radius:6px;padding:4px 10px;font-size:.78rem;cursor:pointer;font-weight:600;white-space:nowrap}.svc-activate-btn:hover{background:#eff6ff;border-color:#7c5cfc;color:#7c5cfc}
+.svc-cat-drag{cursor:grab;padding:0 5px 0 0;color:#c8d0da;font-size:1rem;flex-shrink:0;line-height:1;user-select:none}
+.svc-cat-drag:active{cursor:grabbing}
+.svc-cat-rename-btn{background:none;border:none;cursor:pointer;color:#b0bec5;font-size:.78rem;padding:2px 5px;opacity:0;transition:.1s;margin-left:4px;flex-shrink:0}
+.svc-cat-header:hover .svc-cat-rename-btn{opacity:1}
+.svc-cat-rename-input{border:1.5px solid #7c5cfc;border-radius:5px;padding:1px 7px;font-size:.78rem;font-weight:700;background:#fff;outline:none;width:150px;letter-spacing:.04em;margin-bottom:0}
+.svc-cat-rn-ok{background:none;border:none;cursor:pointer;color:#15803d;padding:0 3px;font-size:.9rem}
+.svc-cat-rn-x{background:none;border:none;cursor:pointer;color:#94a3b8;padding:0 3px;font-size:.9rem}
+.svc-cat-section.drag-over{outline:2px solid #7c5cfc;outline-offset:-1px}
+.svc-cat-section.dragging{opacity:.3}
 
 /* ── Aukioloajat ── */
 .avail-grid{display:flex;flex-direction:column;gap:.5rem}
@@ -418,6 +427,11 @@ _calDate.setHours(12,0,0,0);
 let _calBookings = [];
 let _svcTab = 'palvelut';
 let _catCollapseState = {};
+let _catOrder = JSON.parse(localStorage.getItem('varaus_catOrder') || 'null') || null;
+let _catNames = JSON.parse(localStorage.getItem('varaus_catNames') || '{}');
+let _dragCatIdx = -1;
+let _renderedCatOrder = [];
+let _renamingCat = null;
 
 const TEMPLATE_SERVICES = [
 // Leikkaukset
@@ -993,33 +1007,59 @@ function renderServices() {
   });
 
   // All categories: template order first, then any DB-only extras
-  const allCats = [...tplCatOrder];
+  let allCats = [...tplCatOrder];
   Object.keys(dbByCat).forEach(c => { if (!allCats.includes(c)) allCats.push(c); });
 
-  const firstRender = Object.keys(_catCollapseState).length === 0;
+  // Apply saved order
+  if (_catOrder) {
+    allCats = [..._catOrder.filter(c => allCats.includes(c)), ...allCats.filter(c => !_catOrder.includes(c))];
+  } else {
+    _catOrder = [...allCats];
+    localStorage.setItem('varaus_catOrder', JSON.stringify(_catOrder));
+  }
+
+  _renderedCatOrder = [];
   let html = '';
 
-  allCats.forEach((cat, catIdx) => {
+  allCats.forEach(cat => {
     const dbSvcs = (dbByCat[cat] || []).sort((a,b) => a.sort_order - b.sort_order);
     const tpls   = tplByCat[cat] || [];
     const dbNames = new Set(dbSvcs.map(s => s.name.toLowerCase()));
     const unactivated = tpls.filter(t => !dbNames.has(t.name.toLowerCase()));
     if (!dbSvcs.length && !unactivated.length) return;
 
-    // Initial state: open if has activated services, collapsed otherwise
-    if (firstRender) _catCollapseState[catIdx] = dbSvcs.length > 0;
-    const isOpen = !!_catCollapseState[catIdx];
+    if (!(cat in _catCollapseState)) _catCollapseState[cat] = dbSvcs.length > 0;
+    const isOpen = !!_catCollapseState[cat];
 
-    const catLabel = cat === '_noCat' ? 'Muut' : cat;
+    const renderedIdx = _renderedCatOrder.length;
+    _renderedCatOrder.push(cat);
+
+    const displayName = _catNames[cat] || (cat === '_noCat' ? 'Muut' : cat);
     const badge = dbSvcs.length ? `<span class="svc-cat-badge">${dbSvcs.length}</span>` : '';
 
-    html += `<div class="svc-cat-section">
-      <div class="svc-cat-header" onclick="toggleCat(${catIdx})">
-        <span class="svc-cat-chev" id="svc-chev-${catIdx}">${isOpen ? '▾' : '›'}</span>
-        <span class="svc-cat-name">${catLabel}</span>
+    const isRenaming = _renamingCat === cat;
+    const nameHtml = isRenaming
+      ? `<input class="svc-cat-rename-input" id="svc-rn-input" value="${displayName.replace(/"/g,'&quot;')}"
+           onkeydown="if(event.key==='Enter')saveCatRename(${renderedIdx});if(event.key==='Escape')cancelCatRename()"
+           onclick="event.stopPropagation()" autocomplete="off">
+         <button class="svc-cat-rn-ok" onclick="event.stopPropagation();saveCatRename(${renderedIdx})">✓</button>
+         <button class="svc-cat-rn-x" onclick="event.stopPropagation();cancelCatRename()">✕</button>`
+      : `<span class="svc-cat-name">${displayName}</span>
+         <button class="svc-cat-rename-btn" onclick="event.stopPropagation();startCatRename(${renderedIdx})" title="Nimeä uudelleen">✏</button>`;
+
+    html += `<div class="svc-cat-section" id="svc-section-${renderedIdx}"
+        draggable="true"
+        ondragstart="onCatDragStart(event,${renderedIdx})"
+        ondragover="onCatDragOver(event,${renderedIdx})"
+        ondrop="onCatDrop(event,${renderedIdx})"
+        ondragend="onCatDragEnd(event)">
+      <div class="svc-cat-header" onclick="toggleCat(${renderedIdx})">
+        <span class="svc-cat-drag" onclick="event.stopPropagation()" title="Vedä järjestääksesi">⠿</span>
+        <span class="svc-cat-chev" id="svc-chev-${renderedIdx}">${isOpen ? '▾' : '›'}</span>
+        ${nameHtml}
         ${badge}
       </div>
-      <div id="svc-cat-${catIdx}" style="${isOpen ? '' : 'display:none'}">
+      <div id="svc-cat-${renderedIdx}" style="${isOpen ? '' : 'display:none'}">
         <table class="svc-table"><thead><tr>
           <th>Palvelun nimi</th><th>Kesto</th><th>Hinta</th>
           <th style="width:110px"></th>
@@ -1058,12 +1098,83 @@ function renderServices() {
   container.innerHTML = html || '<div class="empty">Ei palveluja.</div>';
 }
 
-function toggleCat(catIdx) {
-  const body = document.getElementById('svc-cat-' + catIdx);
-  const chev = document.getElementById('svc-chev-' + catIdx);
-  _catCollapseState[catIdx] = !_catCollapseState[catIdx];
-  body.style.display = _catCollapseState[catIdx] ? '' : 'none';
-  chev.textContent   = _catCollapseState[catIdx] ? '▾' : '›';
+function toggleCat(renderedIdx) {
+  const cat = _renderedCatOrder[renderedIdx];
+  if (!cat) return;
+  const body = document.getElementById('svc-cat-' + renderedIdx);
+  const chev = document.getElementById('svc-chev-' + renderedIdx);
+  _catCollapseState[cat] = !_catCollapseState[cat];
+  body.style.display = _catCollapseState[cat] ? '' : 'none';
+  chev.textContent   = _catCollapseState[cat] ? '▾' : '›';
+}
+
+function startCatRename(renderedIdx) {
+  _renamingCat = _renderedCatOrder[renderedIdx];
+  renderServices();
+  setTimeout(() => { const inp = document.getElementById('svc-rn-input'); if(inp){inp.focus();inp.select();} }, 0);
+}
+
+function cancelCatRename() {
+  _renamingCat = null;
+  renderServices();
+}
+
+function saveCatRename(renderedIdx) {
+  const cat = _renderedCatOrder[renderedIdx];
+  const inp = document.getElementById('svc-rn-input');
+  if (!inp) return;
+  const newName = inp.value.trim();
+  if (newName) {
+    _catNames[cat] = newName;
+  } else {
+    delete _catNames[cat];
+  }
+  localStorage.setItem('varaus_catNames', JSON.stringify(_catNames));
+  _renamingCat = null;
+  renderServices();
+}
+
+function onCatDragStart(event, renderedIdx) {
+  _dragCatIdx = renderedIdx;
+  event.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const el = document.getElementById('svc-section-' + renderedIdx);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function onCatDragOver(event, renderedIdx) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.svc-cat-section').forEach(el => el.classList.remove('drag-over'));
+  if (renderedIdx !== _dragCatIdx) {
+    const el = document.getElementById('svc-section-' + renderedIdx);
+    if (el) el.classList.add('drag-over');
+  }
+}
+
+function onCatDrop(event, renderedIdx) {
+  event.preventDefault();
+  if (_dragCatIdx < 0 || _dragCatIdx === renderedIdx) return;
+  const dragCat = _renderedCatOrder[_dragCatIdx];
+  const dropCat = _renderedCatOrder[renderedIdx];
+  const a = _catOrder.indexOf(dragCat);
+  if (a >= 0) {
+    _catOrder.splice(a, 1);
+    const b = _catOrder.indexOf(dropCat);
+    _catOrder.splice(b >= 0 ? b : _catOrder.length, 0, dragCat);
+    localStorage.setItem('varaus_catOrder', JSON.stringify(_catOrder));
+  }
+  _dragCatIdx = -1;
+  renderServices();
+}
+
+function onCatDragEnd(event) {
+  document.querySelectorAll('.svc-cat-section').forEach(el => {
+    el.classList.remove('dragging');
+    el.classList.remove('drag-over');
+  });
+  _dragCatIdx = -1;
 }
 
 function openSvcTemplate(idx) {
