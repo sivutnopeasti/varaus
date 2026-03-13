@@ -100,7 +100,12 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
 .svc-tabs{display:flex;gap:0;border-bottom:2px solid #e8eaf0;margin-bottom:1rem}
 .svc-tab{padding:.5rem 1rem;font-size:.88rem;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
 .svc-tab.active{color:#7c5cfc;border-bottom-color:#7c5cfc}
-.svc-category-title{font-size:.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding:.75rem 0 .4rem;border-bottom:1px solid #f1f5f9;margin-bottom:.25rem}
+.svc-cat-section{border:1px solid #f1f5f9;border-radius:8px;margin-bottom:5px;overflow:hidden}
+.svc-cat-header{display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;background:#f8fafc;cursor:pointer;user-select:none;transition:.1s}
+.svc-cat-header:hover{background:#f1f5f9}
+.svc-cat-chev{font-size:.85rem;color:#94a3b8;width:14px;flex-shrink:0}
+.svc-cat-name{font-size:.78rem;font-weight:700;color:#374151;flex:1;text-transform:uppercase;letter-spacing:.05em}
+.svc-cat-badge{background:#7c5cfc;color:#fff;border-radius:10px;padding:1px 7px;font-size:.7rem;font-weight:700;margin-left:auto}
 .svc-table{width:100%;border-collapse:collapse;font-size:.86rem}
 .svc-table th{text-align:left;padding:.5rem .75rem;color:#94a3b8;font-size:.72rem;font-weight:600;text-transform:uppercase;border-bottom:1px solid #f1f5f9}
 .svc-table td{padding:.6rem .75rem;border-bottom:1px solid #f8fafc;vertical-align:middle}
@@ -412,6 +417,7 @@ let _calDate = new Date();
 _calDate.setHours(12,0,0,0);
 let _calBookings = [];
 let _svcTab = 'palvelut';
+let _catCollapseState = {};
 
 const TEMPLATE_SERVICES = [
 // Leikkaukset
@@ -990,19 +996,34 @@ function renderServices() {
   const allCats = [...tplCatOrder];
   Object.keys(dbByCat).forEach(c => { if (!allCats.includes(c)) allCats.push(c); });
 
-  let html = '<table class="svc-table"><thead><tr>'
-    + '<th>Palvelun nimi</th><th>Kesto</th><th>Hinta</th>'
-    + '<th style="width:110px"></th></tr></thead><tbody>';
+  const firstRender = Object.keys(_catCollapseState).length === 0;
+  let html = '';
 
-  allCats.forEach(cat => {
+  allCats.forEach((cat, catIdx) => {
     const dbSvcs = (dbByCat[cat] || []).sort((a,b) => a.sort_order - b.sort_order);
     const tpls   = tplByCat[cat] || [];
     const dbNames = new Set(dbSvcs.map(s => s.name.toLowerCase()));
     const unactivated = tpls.filter(t => !dbNames.has(t.name.toLowerCase()));
     if (!dbSvcs.length && !unactivated.length) return;
 
+    // Initial state: open if has activated services, collapsed otherwise
+    if (firstRender) _catCollapseState[catIdx] = dbSvcs.length > 0;
+    const isOpen = !!_catCollapseState[catIdx];
+
     const catLabel = cat === '_noCat' ? 'Muut' : cat;
-    html += `<tr><td colspan="4"><div class="svc-category-title">${catLabel}</div></td></tr>`;
+    const badge = dbSvcs.length ? `<span class="svc-cat-badge">${dbSvcs.length}</span>` : '';
+
+    html += `<div class="svc-cat-section">
+      <div class="svc-cat-header" onclick="toggleCat(${catIdx})">
+        <span class="svc-cat-chev" id="svc-chev-${catIdx}">${isOpen ? '▾' : '›'}</span>
+        <span class="svc-cat-name">${catLabel}</span>
+        ${badge}
+      </div>
+      <div id="svc-cat-${catIdx}" style="${isOpen ? '' : 'display:none'}">
+        <table class="svc-table"><thead><tr>
+          <th>Palvelun nimi</th><th>Kesto</th><th>Hinta</th>
+          <th style="width:110px"></th>
+        </tr></thead><tbody>`;
 
     // Activated (DB) services
     dbSvcs.forEach((s, idx) => {
@@ -1026,14 +1047,23 @@ function renderServices() {
       html += `<tr>
         <td class="svc-name-cell" style="color:#b0bec5">${t.name}</td>
         <td style="color:#b0bec5">${t.dur} min</td>
-        <td style="color:#b0bec5;white-space:nowrap">${t.price?(t.price/100).toFixed(0)+' €':''}</td>
+        <td style="color:#b0bec5;white-space:nowrap"></td>
         <td><button class="svc-activate-btn" onclick="openSvcTemplate(${idx})">+ Aktivoi</button></td>
       </tr>`;
     });
+
+    html += '</tbody></table></div></div>';
   });
 
-  html += '</tbody></table>';
-  container.innerHTML = html;
+  container.innerHTML = html || '<div class="empty">Ei palveluja.</div>';
+}
+
+function toggleCat(catIdx) {
+  const body = document.getElementById('svc-cat-' + catIdx);
+  const chev = document.getElementById('svc-chev-' + catIdx);
+  _catCollapseState[catIdx] = !_catCollapseState[catIdx];
+  body.style.display = _catCollapseState[catIdx] ? '' : 'none';
+  chev.textContent   = _catCollapseState[catIdx] ? '▾' : '›';
 }
 
 function openSvcTemplate(idx) {
