@@ -108,6 +108,7 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
 .svc-name-cell{font-weight:600}
 .svc-desc-cell{color:#64748b;font-size:.82rem}
 .svc-order-btns{display:flex;gap:3px}
+.svc-activate-btn{background:#f8f9fa;color:#374151;border:1px solid #e0e0e0;border-radius:6px;padding:4px 10px;font-size:.78rem;cursor:pointer;font-weight:600;white-space:nowrap}.svc-activate-btn:hover{background:#eff6ff;border-color:#7c5cfc;color:#7c5cfc}
 
 /* ── Aukioloajat ── */
 .avail-grid{display:flex;flex-direction:column;gap:.5rem}
@@ -411,6 +412,207 @@ let _calDate = new Date();
 _calDate.setHours(12,0,0,0);
 let _calBookings = [];
 let _svcTab = 'palvelut';
+
+const TEMPLATE_SERVICES = [
+// Leikkaukset
+{cat:'Leikkaukset',name:'Naisen leikkaus',dur:45,price:4500},
+{cat:'Leikkaukset',name:'Naisen leikkaus, pitkät',dur:60,price:5500},
+{cat:'Leikkaukset',name:'Miehen leikkaus',dur:30,price:3000},
+{cat:'Leikkaukset',name:'Lasten leikkaus (alle 12 v)',dur:30,price:2500},
+{cat:'Leikkaukset',name:'Opiskelija / eläkeläinen',dur:45,price:3500},
+{cat:'Leikkaukset',name:'Otsatukka / siistimisleikkaus',dur:15,price:1500},
+// Värjäykset
+{cat:'Värjäykset',name:'Juurivärjäys',dur:60,price:6000},
+{cat:'Värjäykset',name:'Juurivärjäys, pitkät',dur:75,price:7500},
+{cat:'Värjäykset',name:'Kokovärjäys',dur:90,price:8000},
+{cat:'Värjäykset',name:'Kokovärjäys, pitkät',dur:120,price:10000},
+{cat:'Värjäykset',name:'Tummentaminen',dur:60,price:6000},
+{cat:'Värjäykset',name:'Puolivärjäys',dur:90,price:7000},
+{cat:'Värjäykset',name:'Värinpoisto',dur:60,price:6500},
+{cat:'Värjäykset',name:'Värikorjaus',dur:120,price:12000},
+{cat:'Värjäykset',name:'Hapetuskäsittely',dur:60,price:5500},
+{cat:'Värjäykset',name:'Miehen värjäys',dur:45,price:4500},
+// Monivärit/raidat
+{cat:'Monivärit/raidat',name:'Folioraidat, suppea',dur:60,price:6500},
+{cat:'Monivärit/raidat',name:'Folioraidat, puoli',dur:90,price:8500},
+{cat:'Monivärit/raidat',name:'Folioraidat, täysi',dur:120,price:11000},
+{cat:'Monivärit/raidat',name:'Folioraidat, täysi, pitkät',dur:150,price:13000},
+{cat:'Monivärit/raidat',name:'Balayage',dur:120,price:12000},
+{cat:'Monivärit/raidat',name:'Balayage, pitkät',dur:150,price:14500},
+{cat:'Monivärit/raidat',name:'Ombre',dur:120,price:12000},
+{cat:'Monivärit/raidat',name:'Sombre',dur:120,price:11500},
+{cat:'Monivärit/raidat',name:'Babylights',dur:120,price:13000},
+{cat:'Monivärit/raidat',name:'Airtouch',dur:150,price:15000},
+{cat:'Monivärit/raidat',name:'Tumma balayage',dur:120,price:12000},
+{cat:'Monivärit/raidat',name:'Hiusiväri + raidat',dur:150,price:14000},
+{cat:'Monivärit/raidat',name:'Värilisä (balayagen yhteydessä)',dur:30,price:3000},
+{cat:'Monivärit/raidat',name:'Väri + raidat, lyhyet',dur:90,price:9500},
+{cat:'Monivärit/raidat',name:'Kontrastiväri',dur:90,price:9000},
+{cat:'Monivärit/raidat',name:'Rootsmelt',dur:60,price:6500},
+// Kasvivärit
+{cat:'Kasvivärit',name:'Kasviväri, lyhyet',dur:75,price:7000},
+{cat:'Kasvivärit',name:'Kasviväri, puolipitkät',dur:90,price:8500},
+{cat:'Kasvivärit',name:'Kasviväri, pitkät',dur:120,price:10000},
+{cat:'Kasvivärit',name:'Kasviväri + leikkaus',dur:120,price:10000},
+{cat:'Kasvivärit',name:'Henna, lyhyet',dur:75,price:7000},
+{cat:'Kasvivärit',name:'Henna, puolipitkät',dur:90,price:8500},
+{cat:'Kasvivärit',name:'Henna, pitkät',dur:120,price:10000},
+{cat:'Kasvivärit',name:'Indigo-käsittely',dur:90,price:8000},
+// Kampaukset ja meikit
+{cat:'Kampaukset ja meikit',name:'Puhalluskuivaus',dur:45,price:4000},
+{cat:'Kampaukset ja meikit',name:'Puhallus + muotoilu',dur:60,price:5500},
+{cat:'Kampaukset ja meikit',name:'Juhlaletitys',dur:60,price:7500},
+{cat:'Kampaukset ja meikit',name:'Hiuspinni / juhlaletitys',dur:75,price:9000},
+{cat:'Kampaukset ja meikit',name:'Morsiusletitys',dur:90,price:12000},
+{cat:'Kampaukset ja meikit',name:'Morsiusletitys + meikki',dur:150,price:20000},
+{cat:'Kampaukset ja meikit',name:'Permanenttiletitys',dur:60,price:7000},
+{cat:'Kampaukset ja meikit',name:'Meikit',dur:60,price:7000},
+{cat:'Kampaukset ja meikit',name:'Häämeikki',dur:90,price:11000},
+{cat:'Kampaukset ja meikit',name:'Meikin opetus',dur:90,price:9000},
+// Hiustenpidennykset ja permanentit
+{cat:'Hiustenpidennykset ja permanentit',name:'Keratiinipermanentti, lyhyet',dur:90,price:9000},
+{cat:'Hiustenpidennykset ja permanentit',name:'Keratiinipermanentti, pitkät',dur:120,price:11500},
+{cat:'Hiustenpidennykset ja permanentit',name:'Digitaalipermanentti, lyhyet',dur:120,price:11500},
+{cat:'Hiustenpidennykset ja permanentit',name:'Digitaalipermanentti, pitkät',dur:150,price:14000},
+{cat:'Hiustenpidennykset ja permanentit',name:'Hiustenpidennykset',dur:240,price:0,desc:'Hinta sopimuksen mukaan'},
+{cat:'Hiustenpidennykset ja permanentit',name:'Hiustenpidennykset, huolto',dur:120,price:9000},
+// Ripset/kulmat
+{cat:'Ripset/kulmat',name:'Kulmien muotoilu ja värjäys',dur:30,price:3000},
+{cat:'Ripset/kulmat',name:'Kulmien värjäys',dur:15,price:1500},
+{cat:'Ripset/kulmat',name:'Kulmien muotoilu (vaha)',dur:30,price:2500},
+{cat:'Ripset/kulmat',name:'Kulmien laminointi',dur:60,price:5500},
+{cat:'Ripset/kulmat',name:'Brow henna',dur:60,price:5500},
+{cat:'Ripset/kulmat',name:'Ripsienpidennykset, klassinen',dur:90,price:8000},
+{cat:'Ripset/kulmat',name:'Ripsienpidennykset, volyymi',dur:120,price:10000},
+{cat:'Ripset/kulmat',name:'Ripsienpidennykset, täydennys',dur:60,price:5500},
+{cat:'Ripset/kulmat',name:'Ripsien värjäys',dur:30,price:2000},
+{cat:'Ripset/kulmat',name:'Ripsien nosto + värjäys',dur:60,price:6000},
+{cat:'Ripset/kulmat',name:'Kulmien ja ripsien värjäys',dur:30,price:3000},
+{cat:'Ripset/kulmat',name:'Ripsien ja kulmien laminointi',dur:90,price:9000},
+// Hiushoidot
+{cat:'Hiushoidot',name:'Kosteuttava hiushoito',dur:30,price:2500},
+{cat:'Hiushoidot',name:'Keratiinihoito',dur:60,price:6000},
+{cat:'Hiushoidot',name:'Olaplex-hoito',dur:45,price:5000},
+{cat:'Hiushoidot',name:'Hiuspäänahkahoito',dur:45,price:5000},
+{cat:'Hiushoidot',name:'Syvähoito',dur:30,price:3500},
+{cat:'Hiushoidot',name:'Hiusöljyhoito',dur:30,price:3000},
+{cat:'Hiushoidot',name:'Proteiinihoito',dur:45,price:4500},
+{cat:'Hiushoidot',name:'Botox-hiushoito',dur:60,price:7000},
+// Parta
+{cat:'Parta',name:'Parranleikkaus',dur:20,price:2000},
+{cat:'Parta',name:'Parranajo (suoraparturilla)',dur:30,price:3500},
+{cat:'Parta',name:'Parranmuotoilu',dur:20,price:2000},
+{cat:'Parta',name:'Parran värjäys',dur:30,price:2500},
+{cat:'Parta',name:'Hiukset + parta',dur:60,price:5000},
+// Päähieronnat
+{cat:'Päähieronnat',name:'Päähieronta',dur:30,price:3000},
+// Kasvohoidot
+{cat:'Kasvohoidot',name:'Peruskasvohoito',dur:60,price:6000},
+{cat:'Kasvohoidot',name:'Anti-age kasvohoito',dur:75,price:8000},
+{cat:'Kasvohoidot',name:'Aknehoito',dur:60,price:6500},
+{cat:'Kasvohoidot',name:'Hydrahoito',dur:60,price:6500},
+{cat:'Kasvohoidot',name:'Entsyymihoito',dur:60,price:6500},
+{cat:'Kasvohoidot',name:'Happihoito',dur:75,price:8500},
+// Kädet/kynnet
+{cat:'Kädet/kynnet',name:'Manikyyri',dur:45,price:3500},
+{cat:'Kädet/kynnet',name:'Manikyyri + lakkaus',dur:60,price:4500},
+{cat:'Kädet/kynnet',name:'Shellac kädet',dur:60,price:5000},
+{cat:'Kädet/kynnet',name:'Geelilakkaus kädet',dur:60,price:5500},
+{cat:'Kädet/kynnet',name:'Geelirakennekynnet',dur:90,price:7500},
+{cat:'Kädet/kynnet',name:'Acryylirakennekynnet',dur:90,price:7500},
+{cat:'Kädet/kynnet',name:'Kynsihuolto / täytöt',dur:60,price:5500},
+{cat:'Kädet/kynnet',name:'Geelipoisto',dur:30,price:2000},
+{cat:'Kädet/kynnet',name:'Kynsilakkaus',dur:30,price:2000},
+{cat:'Kädet/kynnet',name:'Ranskalaiset kynnet',dur:75,price:6500},
+{cat:'Kädet/kynnet',name:'Nail art',dur:30,price:2500},
+// Jalkahoidot
+{cat:'Jalkahoidot',name:'Jalkahoito',dur:60,price:5500},
+{cat:'Jalkahoidot',name:'Pedikyyri',dur:60,price:5000},
+{cat:'Jalkahoidot',name:'Pedikyyri + lakkaus',dur:75,price:6500},
+{cat:'Jalkahoidot',name:'Shellac jalat',dur:75,price:6500},
+{cat:'Jalkahoidot',name:'Geelilakkaus jalat',dur:75,price:6500},
+// Vartalohoidot
+{cat:'Vartalohoidot',name:'Vartalohoito',dur:60,price:7000},
+{cat:'Vartalohoidot',name:'Ihohoito, selkä',dur:45,price:5500},
+// Ihokarvojen poisto
+{cat:'Ihokarvojen poisto',name:'Ylähuuli (vaha)',dur:15,price:1500},
+{cat:'Ihokarvojen poisto',name:'Kulmat (vaha)',dur:15,price:1500},
+{cat:'Ihokarvojen poisto',name:'Kainalot (vaha)',dur:20,price:2000},
+{cat:'Ihokarvojen poisto',name:'Sääret (vaha)',dur:30,price:3500},
+{cat:'Ihokarvojen poisto',name:'Reidet (vaha)',dur:30,price:3500},
+{cat:'Ihokarvojen poisto',name:'Sääret + reidet (vaha)',dur:45,price:5500},
+{cat:'Ihokarvojen poisto',name:'Bikini (vaha)',dur:20,price:2500},
+{cat:'Ihokarvojen poisto',name:'Brasilialainen bikini (vaha)',dur:30,price:4000},
+{cat:'Ihokarvojen poisto',name:'Koko jalat (vaha)',dur:45,price:5500},
+{cat:'Ihokarvojen poisto',name:'Koko jalat + bikini (vaha)',dur:60,price:7000},
+{cat:'Ihokarvojen poisto',name:'Selkä (vaha)',dur:30,price:3500},
+{cat:'Ihokarvojen poisto',name:'Käsivarret (vaha)',dur:20,price:2500},
+{cat:'Ihokarvojen poisto',name:'IPL-käsittely, pieni alue',dur:20,price:4000},
+{cat:'Ihokarvojen poisto',name:'IPL-käsittely, keskialue',dur:30,price:6000},
+{cat:'Ihokarvojen poisto',name:'IPL-käsittely, laaja alue',dur:45,price:8000},
+{cat:'Ihokarvojen poisto',name:'Laserkarvauspoisto, pieni',dur:20,price:5000},
+{cat:'Ihokarvojen poisto',name:'Laserkarvauspoisto, laaja',dur:45,price:10000},
+// Rusketukset
+{cat:'Rusketukset',name:'Suihkurusketus',dur:30,price:3500},
+{cat:'Rusketukset',name:'Itserusketus (käsittely)',dur:30,price:4000},
+{cat:'Rusketukset',name:'Solariumrusketus',dur:15,price:1000},
+// Microblading
+{cat:'Microblading',name:'Microblading, kulmien piirtäminen',dur:120,price:18000},
+{cat:'Microblading',name:'Microblading, täyttökerta',dur:60,price:8000},
+{cat:'Microblading',name:'Microblading, combo brows',dur:150,price:20000},
+// Kestopigmentointi
+{cat:'Kestopigmentointi',name:'Huulten piirtäminen',dur:120,price:20000},
+{cat:'Kestopigmentointi',name:'Huulten täyttökerta',dur:90,price:12000},
+{cat:'Kestopigmentointi',name:'Silmälinjan piirtäminen, ylä',dur:90,price:15000},
+{cat:'Kestopigmentointi',name:'Silmälinjan piirtäminen, ala',dur:90,price:15000},
+{cat:'Kestopigmentointi',name:'Silmälinjan piirtäminen, molemmat',dur:120,price:20000},
+{cat:'Kestopigmentointi',name:'Kulmien piirtäminen',dur:120,price:20000},
+{cat:'Kestopigmentointi',name:'Kulmien täyttökerta',dur:90,price:10000},
+{cat:'Kestopigmentointi',name:'Powder brows',dur:150,price:22000},
+{cat:'Kestopigmentointi',name:'Ombre brows',dur:150,price:22000},
+{cat:'Kestopigmentointi',name:'Nano brows',dur:150,price:23000},
+{cat:'Kestopigmentointi',name:'Lip blush',dur:150,price:22000},
+{cat:'Kestopigmentointi',name:'Aquarelle lips',dur:150,price:22000},
+{cat:'Kestopigmentointi',name:'Eyeliner, täyttökerta',dur:60,price:10000},
+{cat:'Kestopigmentointi',name:'Korjaus / parannuskerta',dur:90,price:10000},
+{cat:'Kestopigmentointi',name:'Konsultaatio',dur:30,price:0},
+{cat:'Kestopigmentointi',name:'Pigmentinpoisto (laser)',dur:30,price:8000},
+// Urheiluhieronta
+{cat:'Urheiluhieronta',name:'Urheiluhieronta 30 min',dur:30,price:4500},
+{cat:'Urheiluhieronta',name:'Urheiluhieronta 45 min',dur:45,price:6000},
+{cat:'Urheiluhieronta',name:'Urheiluhieronta 60 min',dur:60,price:7500},
+{cat:'Urheiluhieronta',name:'Urheiluhieronta 75 min',dur:75,price:9000},
+{cat:'Urheiluhieronta',name:'Urheiluhieronta 90 min',dur:90,price:10500},
+{cat:'Urheiluhieronta',name:'Urheiluhieronta 120 min',dur:120,price:13500},
+// Klassinen hieronta
+{cat:'Klassinen hieronta',name:'Klassinen hieronta 30 min',dur:30,price:4000},
+{cat:'Klassinen hieronta',name:'Klassinen hieronta 45 min',dur:45,price:5500},
+{cat:'Klassinen hieronta',name:'Klassinen hieronta 60 min',dur:60,price:7000},
+{cat:'Klassinen hieronta',name:'Klassinen hieronta 75 min',dur:75,price:8500},
+{cat:'Klassinen hieronta',name:'Klassinen hieronta 90 min',dur:90,price:10000},
+{cat:'Klassinen hieronta',name:'Klassinen hieronta 120 min',dur:120,price:13000},
+// Kuumakivihieronta
+{cat:'Kuumakivihieronta',name:'Kuumakivihieronta 30 min',dur:30,price:5000},
+{cat:'Kuumakivihieronta',name:'Kuumakivihieronta 45 min',dur:45,price:6500},
+{cat:'Kuumakivihieronta',name:'Kuumakivihieronta 60 min',dur:60,price:8000},
+{cat:'Kuumakivihieronta',name:'Kuumakivihieronta 75 min',dur:75,price:9500},
+{cat:'Kuumakivihieronta',name:'Kuumakivihieronta 90 min',dur:90,price:11000},
+{cat:'Kuumakivihieronta',name:'Kuumakivihieronta 120 min',dur:120,price:14000},
+// Lihaskalvohieronta
+{cat:'Lihaskalvohieronta',name:'Lihaskalvohieronta 30 min',dur:30,price:5000},
+{cat:'Lihaskalvohieronta',name:'Lihaskalvohieronta 45 min',dur:45,price:6500},
+{cat:'Lihaskalvohieronta',name:'Lihaskalvohieronta 60 min',dur:60,price:8000},
+{cat:'Lihaskalvohieronta',name:'Lihaskalvohieronta 75 min',dur:75,price:9500},
+{cat:'Lihaskalvohieronta',name:'Lihaskalvohieronta 90 min',dur:90,price:11000},
+{cat:'Lihaskalvohieronta',name:'Lihaskalvohieronta 120 min',dur:120,price:14000},
+// Henkilökohtainen aika
+{cat:'Henkilökohtainen aika',name:'Ruokatauko',dur:30,price:0},
+{cat:'Henkilökohtainen aika',name:'Henkilökohtainen meno',dur:60,price:0},
+{cat:'Henkilökohtainen aika',name:'Työmeno',dur:60,price:0},
+{cat:'Henkilökohtainen aika',name:'Sairasloma',dur:480,price:0},
+{cat:'Henkilökohtainen aika',name:'Loma',dur:480,price:0},
+{cat:'Henkilökohtainen aika',name:'Koulutus',dur:240,price:0},
+];
 
 const FI_DAYS_SHORT = ['Su','Ma','Ti','Ke','To','Pe','La'];
 const FI_DAYS_LONG  = ['Sunnuntai','Maanantai','Tiistai','Keskiviikko','Torstai','Perjantai','Lauantai'];
@@ -760,45 +962,94 @@ function getEffectiveCat() {
 
 function renderServices() {
   const container = document.getElementById('svc-list-container');
-  const svcs = _services.filter(s => _svcTab==='palvelut' ? true : false); // only palvelut for now
-  if (!_services.length) { container.innerHTML='<div class="empty">Ei palveluja. Lisää ensimmäinen.</div>'; return; }
 
-  // Group by category
-  const grouped = {};
-  const noCat = [];
-  _services.forEach(s => {
-    if (s.category) { if (!grouped[s.category]) grouped[s.category]=[]; grouped[s.category].push(s); }
-    else noCat.push(s);
-  });
-
-  let html = '<table class="svc-table"><thead><tr><th>Palvelun nimi</th><th>Kuvaus</th><th>Oletushinta</th><th>Oletuskesto</th><th>Järjestys</th><th></th></tr></thead><tbody>';
-
-  const renderRow = (s, arr) => {
-    const idx = arr.indexOf(s);
-    return `<tr>
-      <td class="svc-name-cell">${s.name}${!s.is_active?'<span style="font-size:.7rem;color:#94a3b8;margin-left:6px">(piilotettu)</span>':''}</td>
-      <td class="svc-desc-cell">${s.description||''}</td>
-      <td style="white-space:nowrap">${s.price_cents?(s.price_cents/100).toFixed(0)+' €':''}</td>
-      <td>${s.duration_min} min</td>
-      <td><div class="svc-order-btns">
-        ${idx>0?`<button class="btn-icon" onclick="moveSvc(${s.id},'up')">↑</button>`:'<span style="width:28px"></span>'}
-        ${idx<arr.length-1?`<button class="btn-icon" onclick="moveSvc(${s.id},'down')">↓</button>`:'<span style="width:28px"></span>'}
-      </div></td>
-      <td><button class="btn btn-sm btn-ghost" onclick="openSvcModal(${s.id})">✏</button></td>
-    </tr>`;
-  };
-
-  Object.entries(grouped).forEach(([cat, arr]) => {
-    html += `<tr><td colspan="6"><div class="svc-category-title">${cat}</div></td></tr>`;
-    arr.forEach(s => html += renderRow(s, arr));
-  });
-  if (noCat.length) {
-    if (Object.keys(grouped).length) html += `<tr><td colspan="6"><div class="svc-category-title">Muut</div></td></tr>`;
-    noCat.forEach(s => html += renderRow(s, noCat));
+  if (_svcTab !== 'palvelut') {
+    container.innerHTML = '<div class="empty">Ei lisäpalveluja.</div>';
+    return;
   }
+
+  // Template categories in order
+  const tplCatOrder = [];
+  const tplByCat = {};
+  TEMPLATE_SERVICES.forEach(t => {
+    if (!tplByCat[t.cat]) { tplByCat[t.cat] = []; tplCatOrder.push(t.cat); }
+    tplByCat[t.cat].push(t);
+  });
+
+  // DB services by category
+  const dbByCat = {};
+  _services.forEach(s => {
+    const cat = s.category || '_noCat';
+    if (!dbByCat[cat]) dbByCat[cat] = [];
+    dbByCat[cat].push(s);
+  });
+
+  // All categories: template order first, then any DB-only extras
+  const allCats = [...tplCatOrder];
+  Object.keys(dbByCat).forEach(c => { if (!allCats.includes(c)) allCats.push(c); });
+
+  let html = '<table class="svc-table"><thead><tr>'
+    + '<th>Palvelun nimi</th><th>Kesto</th><th>Hinta</th>'
+    + '<th style="width:110px"></th></tr></thead><tbody>';
+
+  allCats.forEach(cat => {
+    const dbSvcs = (dbByCat[cat] || []).sort((a,b) => a.sort_order - b.sort_order);
+    const tpls   = tplByCat[cat] || [];
+    const dbNames = new Set(dbSvcs.map(s => s.name.toLowerCase()));
+    const unactivated = tpls.filter(t => !dbNames.has(t.name.toLowerCase()));
+    if (!dbSvcs.length && !unactivated.length) return;
+
+    const catLabel = cat === '_noCat' ? 'Muut' : cat;
+    html += `<tr><td colspan="4"><div class="svc-category-title">${catLabel}</div></td></tr>`;
+
+    // Activated (DB) services
+    dbSvcs.forEach((s, idx) => {
+      html += `<tr>
+        <td class="svc-name-cell">${s.name}${!s.is_active?'<span style="font-size:.7rem;color:#94a3b8;margin-left:6px">(piilotettu)</span>':''}</td>
+        <td>${s.duration_min} min</td>
+        <td style="white-space:nowrap">${s.price_cents?(s.price_cents/100).toFixed(0)+' €':''}</td>
+        <td style="display:flex;gap:3px;align-items:center">
+          <div class="svc-order-btns">
+            ${idx>0?`<button class="btn-icon" onclick="moveSvc(${s.id},'up')">↑</button>`:'<span style="width:28px"></span>'}
+            ${idx<dbSvcs.length-1?`<button class="btn-icon" onclick="moveSvc(${s.id},'down')">↓</button>`:'<span style="width:28px"></span>'}
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="openSvcModal(${s.id})">✏</button>
+        </td>
+      </tr>`;
+    });
+
+    // Unactivated templates
+    unactivated.forEach(t => {
+      const idx = TEMPLATE_SERVICES.indexOf(t);
+      html += `<tr>
+        <td class="svc-name-cell" style="color:#b0bec5">${t.name}</td>
+        <td style="color:#b0bec5">${t.dur} min</td>
+        <td style="color:#b0bec5;white-space:nowrap">${t.price?(t.price/100).toFixed(0)+' €':''}</td>
+        <td><button class="svc-activate-btn" onclick="openSvcTemplate(${idx})">+ Aktivoi</button></td>
+      </tr>`;
+    });
+  });
 
   html += '</tbody></table>';
   container.innerHTML = html;
+}
+
+function openSvcTemplate(idx) {
+  const t = TEMPLATE_SERVICES[idx];
+  buildDurSelect();
+  document.getElementById('svc-err').style.display='none';
+  document.getElementById('svc-id').value='';
+  document.getElementById('svc-name').value=t.name;
+  document.getElementById('svc-cat').value=t.cat;
+  document.getElementById('svc-cat-custom').value='';
+  document.getElementById('svc-cat-custom-wrap').style.display='none';
+  document.getElementById('svc-desc').value=t.desc||'';
+  document.getElementById('svc-dur').value=t.dur;
+  document.getElementById('svc-price').value=t.price?(t.price/100).toFixed(2):'';
+  document.getElementById('svc-active').checked=true;
+  document.getElementById('svc-contact-only').checked=false;
+  document.getElementById('svc-modal-title').textContent='Lisää palvelu';
+  document.getElementById('svc-modal').classList.add('open');
 }
 
 async function moveSvc(id, dir) {
