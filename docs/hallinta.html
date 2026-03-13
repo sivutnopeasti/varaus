@@ -1163,9 +1163,9 @@ function renderServices() {
     tplByCat[t.cat].push(t);
   });
 
-  // DB services by category
+  // DB services by category (exclude add-ons)
   const dbByCat = {};
-  _services.forEach(s => {
+  _services.filter(s => !s.is_addon).forEach(s => {
     const cat = s.category || '_noCat';
     if (!dbByCat[cat]) dbByCat[cat] = [];
     dbByCat[cat].push(s);
