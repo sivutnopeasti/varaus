@@ -104,6 +104,25 @@
   .btn-save:hover { background: var(--primary-hover); }
   .btn-delete { padding: .65rem 1rem; background: #fff; color: var(--danger); border: 1px solid var(--danger); border-radius: 8px; font-size: .9rem; cursor: pointer; }
   .btn-delete:hover { background: #fee2e2; }
+  .btn-invoice { padding: .65rem 1rem; background: #fff; color: var(--green); border: 1px solid var(--green); border-radius: 8px; font-size: .9rem; cursor: pointer; font-weight: 600; }
+  .btn-invoice:hover { background: #dcfce7; }
+
+  /* ── Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 14px; padding: 1.75rem; width: 420px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.15); }
+  .modal h2 { font-size: 1rem; margin-bottom: 1.25rem; }
+  .modal-footer { display: flex; gap: .75rem; margin-top: 1.25rem; justify-content: flex-end; }
+
+  /* ── Laskuhistoria ── */
+  .invoice-history { margin-top: 1.25rem; }
+  .invoice-history-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--gray); margin-bottom: .5rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+  .invoice-row { display: flex; align-items: center; gap: .5rem; padding: .45rem 0; border-bottom: 1px solid #f3f4f6; font-size: .82rem; }
+  .invoice-row:last-child { border-bottom: none; }
+  .inv-num { font-weight: 600; color: #374151; min-width: 100px; }
+  .inv-amount { min-width: 70px; text-align: right; }
+  .badge-sent { background: #dbeafe; color: #1d4ed8; }
+  .badge-paid { background: #dcfce7; color: #15803d; }
+  .badge-error { background: #fee2e2; color: #b91c1c; }
 
   /* ── Lomake ── */
   .form-section { margin-bottom: 1.25rem; }
@@ -251,7 +270,41 @@
   <div class="panel-body" id="panel-body"></div>
   <div class="panel-footer">
     <button class="btn-save" onclick="savePanel()">Tallenna muutokset</button>
+    <button class="btn-invoice" onclick="openInvoiceModal()">Lähetä lasku</button>
     <button class="btn-delete" onclick="deleteCustomer()">Poista</button>
+  </div>
+</div>
+
+<!-- Laskumodal -->
+<div id="invoice-modal" style="display:none;" class="modal-overlay" onclick="if(event.target===this)closeInvoiceModal()">
+  <div class="modal">
+    <h2 id="invoice-modal-title">Lähetä lasku</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Laskutyyppi</label>
+        <select id="inv-type" onchange="invTypeChange()">
+          <option value="aloitus">Aloitusmaksu (kertamaksu)</option>
+          <option value="kuukausi">Kuukausimaksu</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Summa (€)</label>
+        <input type="number" id="inv-amount" step="0.01" placeholder="169.00">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:.65rem;">
+      <label>Kuvaus</label>
+      <input type="text" id="inv-desc" placeholder="Verkkosivuston rakentaminen">
+    </div>
+    <div class="form-group" style="margin-top:.65rem;">
+      <label>Eräpäivä</label>
+      <input type="date" id="inv-due">
+    </div>
+    <div style="margin-top:.75rem;font-size:.82rem;color:#6b7280;">Lähetetään: <span id="inv-email" style="font-weight:600;color:#111;"></span></div>
+    <div class="modal-footer">
+      <button class="filter-btn" onclick="closeInvoiceModal()">Peruuta</button>
+      <button class="btn-primary" onclick="sendInvoice()">Lähetä lasku →</button>
+    </div>
   </div>
 </div>
 
@@ -426,8 +479,14 @@ async function openPanel(id) {
     const c = await r.json();
     currentCustomerId = id;
     document.getElementById('panel-title').textContent = c.name;
-    document.getElementById('panel-body').innerHTML = buildCustomerForm(c);
+    document.getElementById('panel-body').innerHTML =
+      buildCustomerForm(c) +
+      `<div class="invoice-history">
+        <div class="invoice-history-title">Laskuhistoria</div>
+        <div id="invoice-history-list"><p style="font-size:.82rem;color:#9ca3af;">Ladataan...</p></div>
+      </div>`;
     document.getElementById('side-panel').classList.add('open');
+    loadInvoiceHistory(id);
   } catch { toast('Virhe ladattaessa asiakasta', true); }
 }
 
@@ -600,7 +659,103 @@ function toast(msg, isError = false) {
 }
 
 // Sulje paneeli painamalla Esc
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePanel(); closeInvoiceModal(); } });
+
+// ── Laskutus ──────────────────────────────────────────────────────────────────
+
+function openInvoiceModal() {
+  if (!currentCustomerId) return;
+  const c = allCustomers.find(x => x.id === currentCustomerId);
+  if (!c) return;
+  document.getElementById('invoice-modal-title').textContent = `Lähetä lasku – ${c.name}`;
+  document.getElementById('inv-email').textContent = c.email || '(ei sähköpostia)';
+  // Esitäytä summa
+  invTypeChange();
+  // Eräpäivä: 14 pv
+  const due = new Date(); due.setDate(due.getDate() + 14);
+  document.getElementById('inv-due').value = due.toISOString().slice(0, 10);
+  document.getElementById('invoice-modal').style.display = 'flex';
+}
+
+function invTypeChange() {
+  if (!currentCustomerId) return;
+  const c = allCustomers.find(x => x.id === currentCustomerId);
+  const type = document.getElementById('inv-type').value;
+  const amountEl = document.getElementById('inv-amount');
+  const descEl   = document.getElementById('inv-desc');
+  if (type === 'aloitus') {
+    amountEl.value = c?.paketti || '';
+    descEl.value   = 'Verkkosivuston rakentaminen';
+  } else {
+    amountEl.value = c?.hinta || '';
+    descEl.value   = 'Verkkosivuston kuukausimaksu';
+  }
+}
+
+function closeInvoiceModal() {
+  document.getElementById('invoice-modal').style.display = 'none';
+}
+
+async function sendInvoice() {
+  if (!currentCustomerId) return;
+  const type   = document.getElementById('inv-type').value;
+  const amount = parseFloat(document.getElementById('inv-amount').value);
+  const desc   = document.getElementById('inv-desc').value.trim();
+  const due    = document.getElementById('inv-due').value;
+  if (!amount || isNaN(amount)) { toast('Anna summa', true); return; }
+
+  const btn = document.querySelector('#invoice-modal .btn-primary');
+  btn.disabled = true; btn.textContent = 'Lähetetään...';
+
+  try {
+    const r = await apiFetch(`/api/customers/${currentCustomerId}/invoice`, {
+      method: 'POST',
+      body: JSON.stringify({ type, amount, description: desc, due_date: due }),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Virhe', true); return; }
+    toast(`Lasku ${d.invoice_number} lähetetty!`);
+    closeInvoiceModal();
+    loadInvoiceHistory(currentCustomerId);
+  } catch { toast('Verkkovirhe', true); }
+  finally { btn.disabled = false; btn.textContent = 'Lähetä lasku →'; }
+}
+
+async function loadInvoiceHistory(customerId) {
+  try {
+    const r = await apiFetch(`/api/customers/${customerId}/invoices`);
+    const invoices = await r.json();
+    renderInvoiceHistory(invoices);
+  } catch {}
+}
+
+function renderInvoiceHistory(invoices) {
+  const el = document.getElementById('invoice-history-list');
+  if (!el) return;
+  if (!invoices.length) { el.innerHTML = '<p style="font-size:.82rem;color:#9ca3af;">Ei laskuja.</p>'; return; }
+  const fmtDate = d => { if (!d) return ''; const [y,m,dd] = d.split('-'); return `${parseInt(dd)}.${parseInt(m)}.${y}`; };
+  el.innerHTML = invoices.map(inv => `
+    <div class="invoice-row">
+      <span class="inv-num">${inv.invoice_number}</span>
+      <span style="flex:1;color:#6b7280;font-size:.8rem;">${fmtDate(inv.created_at?.slice(0,10))}</span>
+      <span class="inv-amount">${Number(inv.amount).toFixed(2)} €</span>
+      <span class="badge badge-${inv.status}" style="display:inline-block;padding:.15rem .45rem;border-radius:12px;font-size:.72rem;font-weight:600;margin:0 .25rem;">
+        ${inv.status === 'paid' ? 'Maksettu' : inv.status === 'error' ? 'Virhe' : 'Lähetetty'}
+      </span>
+      ${inv.status !== 'paid' ? `<button onclick="markPaid(${inv.id})" style="background:none;border:none;cursor:pointer;color:#16a34a;font-size:.78rem;font-weight:600;">✓ Maksettu</button>` : ''}
+    </div>`).join('');
+}
+
+async function markPaid(invoiceId) {
+  try {
+    const r = await apiFetch(`/api/invoices/${invoiceId}`, {
+      method: 'PATCH', body: JSON.stringify({ status: 'paid' }),
+    });
+    if (!r.ok) return;
+    loadInvoiceHistory(currentCustomerId);
+    toast('Merkitty maksetuksi');
+  } catch {}
+}
 </script>
 </body>
 </html>
