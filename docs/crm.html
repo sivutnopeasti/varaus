@@ -85,6 +85,9 @@
   .badge-aktiivinen { background: #dcfce7; color: #15803d; }
   .badge-kokeilu    { background: #fef9c3; color: #854d0e; }
   .badge-churned    { background: #fee2e2; color: #b91c1c; }
+  .badge-sivusto    { background: #dbeafe; color: #1d4ed8; }
+  .badge-ajanvaraus { background: #ede9fe; color: #6d28d9; }
+  .product-badges   { display: flex; gap: .3rem; flex-wrap: wrap; }
 
   /* ── Sivupaneeli ── */
   #side-panel {
@@ -196,6 +199,12 @@
       <span class="nav-icon">➕</span> Lisää asiakas
     </div>
   </nav>
+  <div style="margin-top:auto;padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,.1)">
+    <a href="https://paivita.kappe-gm.workers.dev" target="_blank"
+       style="display:flex;align-items:center;gap:.5rem;color:rgba(255,255,255,.6);font-size:.82rem;text-decoration:none;padding:.5rem .75rem;border-radius:8px;transition:background .15s"
+       onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''"
+    >🌐 Paivita-dashboard ↗</a>
+  </div>
   <div class="sidebar-footer">Nopeatsivut CRM v1.0</div>
 </div>
 
@@ -237,6 +246,7 @@
           <tr>
             <th>Nimi</th>
             <th>Sähköposti</th>
+            <th>Tuote</th>
             <th>Paketti</th>
             <th>Status</th>
             <th>Seuraava lasku</th>
@@ -465,6 +475,7 @@ function renderCustomers() {
     <tr class="row-link" onclick="openPanel(${c.id})">
       <td><strong>${esc(c.name)}</strong></td>
       <td>${c.email ? `<a class="ext-link" href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a>` : '–'}</td>
+      <td><div class="product-badges">${productBadges(c.products)}</div></td>
       <td>${c.paketti ? c.paketti + ' €' : '–'}</td>
       <td><span class="badge badge-${c.status}">${statusLabel(c.status)}</span></td>
       <td>${c.seuraava_lasku ? fmtDate(c.seuraava_lasku) : '–'}</td>
@@ -574,6 +585,20 @@ function buildCustomerForm(c) {
     </div>
 
     <div class="form-section">
+      <div class="form-section-title">Tuotteet</div>
+      <div style="display:flex;gap:1.25rem;flex-wrap:wrap;padding:.25rem 0">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:400;font-size:.88rem">
+          <input type="checkbox" name="_prod_sivusto" style="width:auto;margin:0" ${(c.products==='sivusto'||c.products==='molemmat')?'checked':''}>
+          🌐 Nettisivu
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:400;font-size:.88rem">
+          <input type="checkbox" name="_prod_ajanvaraus" style="width:auto;margin:0" ${(!c.products||c.products==='ajanvaraus'||c.products==='molemmat')?'checked':''}>
+          📅 Ajanvaraus
+        </label>
+      </div>
+    </div>
+
+    <div class="form-section">
       <div class="form-section-title">Status</div>
       <div class="form-grid">
         <div class="form-group"><label>Status</label>
@@ -641,12 +666,24 @@ function collectForm(formId) {
   const data = {};
   new FormData(form).forEach((v, k) => { data[k] = v.trim() === '' ? null : v.trim(); });
   if (data.hinta) data.hinta = parseFloat(data.hinta);
+  // Laske products checkboxeista
+  const hasSivu = !!form.querySelector('[name="_prod_sivusto"]')?.checked;
+  const hasVaraus = !!form.querySelector('[name="_prod_ajanvaraus"]')?.checked;
+  delete data._prod_sivusto; delete data._prod_ajanvaraus;
+  if (hasSivu && hasVaraus) data.products = 'molemmat';
+  else if (hasSivu)         data.products = 'sivusto';
+  else                      data.products = 'ajanvaraus';
   return data;
 }
 
 // ── Apufunktiot ───────────────────────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function statusLabel(s) { return { aktiivinen: 'Aktiivinen', kokeilu: 'Kokeilu', churned: 'Churned' }[s] || s; }
+function productBadges(p) {
+  if (!p || p === 'ajanvaraus') return '<span class="badge badge-ajanvaraus">📅 Varaus</span>';
+  if (p === 'sivusto')          return '<span class="badge badge-sivusto">🌐 Sivu</span>';
+  return '<span class="badge badge-sivusto">🌐 Sivu</span><span class="badge badge-ajanvaraus">📅 Varaus</span>';
+}
 function fmtDate(d) { if (!d) return '–'; const [y,m,dd] = d.split('-'); return `${parseInt(dd)}.${parseInt(m)}.${y}`; }
 function datePlusStr(days) { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0,10); }
 
