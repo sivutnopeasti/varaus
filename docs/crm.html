@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM – Nopeatsivut</title>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --sidebar-bg: #1a1f2e;
+    --sidebar-text: #a8b3cf;
+    --sidebar-active: #fff;
+    --card-bg: #fff;
+    --border: #e5e7eb;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --danger: #dc2626;
+    --green: #16a34a;
+    --yellow: #ca8a04;
+    --gray: #6b7280;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: #111; display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 220px; min-width: 220px; background: var(--sidebar-bg); color: var(--sidebar-text);
+    display: flex; flex-direction: column; padding: 0;
+  }
+  .sidebar-logo { padding: 1.5rem 1.25rem 1rem; font-size: 1.1rem; font-weight: 700; color: #fff; letter-spacing: .02em; }
+  .sidebar-logo span { color: var(--primary); }
+  .sidebar-nav { flex: 1; padding: .5rem 0; }
+  .nav-item {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .65rem 1.25rem; cursor: pointer; border-radius: 6px; margin: 2px .5rem;
+    font-size: .9rem; transition: background .15s, color .15s;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+  .nav-item.active { background: rgba(37,99,235,.25); color: #fff; font-weight: 600; }
+  .nav-icon { font-size: 1.1rem; }
+  .sidebar-footer { padding: 1rem 1.25rem; font-size: .78rem; color: #4b5563; border-top: 1px solid rgba(255,255,255,.05); }
+
+  /* ── Main ── */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #topbar { background: #fff; border-bottom: 1px solid var(--border); padding: .85rem 1.5rem; display: flex; align-items: center; justify-content: space-between; min-height: 56px; }
+  #topbar-title { font-size: 1.05rem; font-weight: 700; }
+  #content { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+  /* ── Stats-kortit ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--card-bg); border-radius: var(--radius); padding: 1.1rem 1.25rem; box-shadow: var(--shadow); }
+  .stat-label { font-size: .75rem; color: var(--gray); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .35rem; }
+  .stat-value { font-size: 1.7rem; font-weight: 700; line-height: 1; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.blue  { color: var(--primary); }
+
+  /* ── Taulukko ── */
+  .toolbar { display: flex; gap: .75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .search-input {
+    flex: 1; min-width: 180px; padding: .55rem .85rem; border: 1px solid var(--border);
+    border-radius: 8px; font-size: .9rem; outline: none;
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .filter-btn {
+    padding: .5rem .9rem; border: 1px solid var(--border); border-radius: 8px;
+    background: #fff; font-size: .85rem; cursor: pointer; transition: .15s;
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-primary {
+    padding: .55rem 1.1rem; background: var(--primary); color: #fff; border: none;
+    border-radius: 8px; font-size: .9rem; font-weight: 600; cursor: pointer; transition: .15s;
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  th { text-align: left; font-size: .75rem; color: var(--gray); text-transform: uppercase; letter-spacing: .05em; padding: .75rem 1rem; background: #f9fafb; border-bottom: 1px solid var(--border); }
+  td { padding: .75rem 1rem; border-bottom: 1px solid var(--border); font-size: .88rem; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.row-link:hover td { background: #f0f4ff; cursor: pointer; }
+  .badge {
+    display: inline-block; padding: .2rem .55rem; border-radius: 20px; font-size: .75rem; font-weight: 600;
+  }
+  .badge-aktiivinen { background: #dcfce7; color: #15803d; }
+  .badge-kokeilu    { background: #fef9c3; color: #854d0e; }
+  .badge-churned    { background: #fee2e2; color: #b91c1c; }
+
+  /* ── Sivupaneeli ── */
+  #side-panel {
+    position: fixed; right: 0; top: 0; bottom: 0; width: 440px;
+    background: #fff; border-left: 1px solid var(--border); box-shadow: -4px 0 24px rgba(0,0,0,.1);
+    display: flex; flex-direction: column; transform: translateX(100%); transition: transform .25s ease;
+    z-index: 100;
+  }
+  #side-panel.open { transform: translateX(0); }
+  .panel-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .panel-header h2 { font-size: 1rem; font-weight: 700; }
+  .panel-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--gray); padding: .25rem .5rem; border-radius: 6px; }
+  .panel-close:hover { background: var(--bg); }
+  .panel-body { flex: 1; overflow-y: auto; padding: 1.25rem; }
+  .panel-footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; gap: .75rem; }
+  .btn-save { flex: 1; padding: .65rem; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: .9rem; font-weight: 600; cursor: pointer; }
+  .btn-save:hover { background: var(--primary-hover); }
+  .btn-delete { padding: .65rem 1rem; background: #fff; color: var(--danger); border: 1px solid var(--danger); border-radius: 8px; font-size: .9rem; cursor: pointer; }
+  .btn-delete:hover { background: #fee2e2; }
+
+  /* ── Lomake ── */
+  .form-section { margin-bottom: 1.25rem; }
+  .form-section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--gray); margin-bottom: .6rem; padding-bottom: .4rem; border-bottom: 1px solid var(--border); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+  .form-grid.full { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: .3rem; }
+  .form-group label { font-size: .78rem; font-weight: 600; color: #374151; }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: .5rem .75rem; border: 1px solid var(--border); border-radius: 7px;
+    font-size: .88rem; outline: none; background: #fff;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+
+  /* ── Kirjautuminen ── */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; z-index: 200;
+  }
+  .login-card { background: #fff; border-radius: 14px; padding: 2.5rem 2rem; width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,.12); }
+  .login-card h1 { font-size: 1.3rem; margin-bottom: .35rem; }
+  .login-card p  { font-size: .85rem; color: var(--gray); margin-bottom: 1.5rem; }
+  .login-card input { width: 100%; padding: .65rem .9rem; border: 1px solid var(--border); border-radius: 8px; font-size: .95rem; margin-bottom: 1rem; outline: none; }
+  .login-card input:focus { border-color: var(--primary); }
+  .login-card button { width: 100%; padding: .7rem; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+  .login-card button:hover { background: var(--primary-hover); }
+  #login-error { color: var(--danger); font-size: .85rem; margin-top: .5rem; min-height: 1.2em; }
+
+  /* ── Tyhjä tila ── */
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--gray); }
+  .empty-icon  { font-size: 2.5rem; margin-bottom: .75rem; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1a1f2e; color: #fff;
+    padding: .75rem 1.25rem; border-radius: 10px; font-size: .88rem; font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2); opacity: 0; transform: translateY(8px);
+    transition: opacity .2s, transform .2s; pointer-events: none; z-index: 300;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  a.ext-link { color: var(--primary); text-decoration: none; }
+  a.ext-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- Kirjautuminen -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>CRM – Nopeatsivut</h1>
+    <p>Kirjaudu sisään admin-tokenilla</p>
+    <input type="password" id="login-token" placeholder="Admin token" autocomplete="current-password">
+    <button onclick="doLogin()">Kirjaudu</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="sidebar-logo">Nopeat<span>sivut</span> CRM</div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" data-view="dashboard" onclick="showView('dashboard')">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-view="customers" onclick="showView('customers')">
+      <span class="nav-icon">👥</span> Asiakkaat
+    </div>
+    <div class="nav-item" data-view="add" onclick="showView('add')">
+      <span class="nav-icon">➕</span> Lisää asiakas
+    </div>
+  </nav>
+  <div class="sidebar-footer">Nopeatsivut CRM v1.0</div>
+</div>
+
+<!-- Pääsisältö -->
+<div id="main">
+  <div id="topbar">
+    <span id="topbar-title">Dashboard</span>
+  </div>
+  <div id="content">
+
+    <!-- Dashboard -->
+    <div id="view-dashboard">
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="stat-label">Asiakkaita</div><div class="stat-value blue" id="s-total">–</div></div>
+        <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value green" id="s-mrr">–</div></div>
+        <div class="stat-card"><div class="stat-label">ARR</div><div class="stat-value green" id="s-arr">–</div></div>
+        <div class="stat-card"><div class="stat-label">Laskuja / 30 pv</div><div class="stat-value" id="s-laskut">–</div></div>
+        <div class="stat-card"><div class="stat-label">Aktiivinen</div><div class="stat-value" id="s-aktiivinen">–</div></div>
+        <div class="stat-card"><div class="stat-label">Kokeilu</div><div class="stat-value" id="s-kokeilu">–</div></div>
+        <div class="stat-card"><div class="stat-label">Churned</div><div class="stat-value" id="s-churned">–</div></div>
+      </div>
+
+      <h2 style="font-size:.95rem;margin-bottom:.75rem;color:#374151;">Lähestyvät laskut (30 pv)</h2>
+      <div id="upcoming-list"></div>
+    </div>
+
+    <!-- Asiakkaat -->
+    <div id="view-customers" style="display:none;">
+      <div class="toolbar">
+        <input type="search" class="search-input" id="search-input" placeholder="Hae nimellä, sähköpostilla, Y-tunnuksella..." oninput="filterCustomers()">
+        <button class="filter-btn active" data-status="" onclick="setFilter(this)">Kaikki</button>
+        <button class="filter-btn" data-status="aktiivinen" onclick="setFilter(this)">Aktiivinen</button>
+        <button class="filter-btn" data-status="kokeilu" onclick="setFilter(this)">Kokeilu</button>
+        <button class="filter-btn" data-status="churned" onclick="setFilter(this)">Churned</button>
+        <button class="btn-primary" onclick="showView('add')">+ Lisää</button>
+      </div>
+      <table id="customers-table">
+        <thead>
+          <tr>
+            <th>Nimi</th>
+            <th>Sähköposti</th>
+            <th>Paketti</th>
+            <th>Status</th>
+            <th>Seuraava lasku</th>
+            <th>Sivusto</th>
+          </tr>
+        </thead>
+        <tbody id="customers-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Lisää asiakas -->
+    <div id="view-add" style="display:none;">
+      <div style="max-width:640px;">
+        <div id="add-form-container"></div>
+        <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+          <button class="btn-primary" onclick="submitAdd()">Tallenna asiakas</button>
+          <button class="filter-btn" onclick="showView('customers')">Peruuta</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Sivupaneeli -->
+<div id="side-panel">
+  <div class="panel-header">
+    <h2 id="panel-title">Asiakas</h2>
+    <button class="panel-close" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+  <div class="panel-footer">
+    <button class="btn-save" onclick="savePanel()">Tallenna muutokset</button>
+    <button class="btn-delete" onclick="deleteCustomer()">Poista</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Konfiguraatio ────────────────────────────────────────────────────────────
+const API = 'https://crm-api.kappe-gm.workers.dev';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('crm_token');
+let allCustomers = [];
+let filterStatus = '';
+let currentCustomerId = null;
+
+// ── Käynnistys ───────────────────────────────────────────────────────────────
+(async () => {
+  if (token) {
+    document.getElementById('login-screen').style.display = 'none';
+    await init();
+  }
+})();
+
+async function init() {
+  buildAddForm();
+  await Promise.all([loadStats(), loadCustomers()]);
+  loadUpcoming();
+}
+
+// ── Kirjautuminen ─────────────────────────────────────────────────────────────
+async function doLogin() {
+  const t = document.getElementById('login-token').value.trim();
+  if (!t) return;
+  try {
+    const r = await fetch(`${API}/api/login`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ token: t }),
+    });
+    const d = await r.json();
+    if (!r.ok) { document.getElementById('login-error').textContent = d.error || 'Virhe'; return; }
+    token = d.token;
+    localStorage.setItem('crm_token', token);
+    document.getElementById('login-screen').style.display = 'none';
+    await init();
+  } catch { document.getElementById('login-error').textContent = 'Verkkovirhe'; }
+}
+
+document.getElementById('login-token').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ── API-kutsu ─────────────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const r = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) },
+  });
+  if (r.status === 401) { localStorage.removeItem('crm_token'); location.reload(); }
+  return r;
+}
+
+// ── Näkymät ───────────────────────────────────────────────────────────────────
+function showView(name) {
+  ['dashboard','customers','add'].forEach(v => {
+    document.getElementById(`view-${v}`).style.display = v === name ? '' : 'none';
+    document.querySelector(`[data-view="${v}"]`).classList.toggle('active', v === name);
+  });
+  const titles = { dashboard: 'Dashboard', customers: 'Asiakkaat', add: 'Lisää asiakas' };
+  document.getElementById('topbar-title').textContent = titles[name];
+  closePanel();
+  if (name === 'dashboard') { loadStats(); loadUpcoming(); }
+  if (name === 'customers') loadCustomers();
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await apiFetch('/api/stats');
+    const d = await r.json();
+    document.getElementById('s-total').textContent     = d.total;
+    document.getElementById('s-mrr').textContent       = `${d.mrr.toFixed(2)} €`;
+    document.getElementById('s-arr').textContent       = `${d.arr.toFixed(2)} €`;
+    document.getElementById('s-laskut').textContent    = d.laskut_30pv;
+    document.getElementById('s-aktiivinen').textContent = d.aktiivinen;
+    document.getElementById('s-kokeilu').textContent   = d.kokeilu;
+    document.getElementById('s-churned').textContent   = d.churned;
+  } catch {}
+}
+
+async function loadUpcoming() {
+  try {
+    const r = await apiFetch('/api/customers?status=aktiivinen');
+    const all = await r.json();
+    const today = new Date(); today.setHours(0,0,0,0);
+    const limit = new Date(today); limit.setDate(limit.getDate() + 30);
+    const upcoming = all.filter(c => {
+      if (!c.seuraava_lasku) return false;
+      const d = new Date(c.seuraava_lasku);
+      return d >= today && d <= limit;
+    }).sort((a,b) => a.seuraava_lasku.localeCompare(b.seuraava_lasku));
+
+    const el = document.getElementById('upcoming-list');
+    if (!upcoming.length) {
+      el.innerHTML = '<p style="color:#6b7280;font-size:.88rem;">Ei lähestyviä laskuja 30 päivän sisällä.</p>';
+      return;
+    }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);">
+      <thead><tr>
+        <th style="text-align:left;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding:.65rem 1rem;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Nimi</th>
+        <th style="text-align:left;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding:.65rem 1rem;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Seuraava lasku</th>
+        <th style="text-align:left;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding:.65rem 1rem;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Laskutus</th>
+        <th style="text-align:left;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding:.65rem 1rem;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Hinta</th>
+      </tr></thead>
+      <tbody>${upcoming.map(c => `
+        <tr class="row-link" onclick="openPanel(${c.id})">
+          <td style="padding:.65rem 1rem;border-bottom:1px solid #e5e7eb;font-size:.88rem;">${esc(c.name)}</td>
+          <td style="padding:.65rem 1rem;border-bottom:1px solid #e5e7eb;font-size:.88rem;">${fmtDate(c.seuraava_lasku)}</td>
+          <td style="padding:.65rem 1rem;border-bottom:1px solid #e5e7eb;font-size:.88rem;">${c.laskutus === 'vuosi' ? 'Vuosi' : 'Kuukausi'}</td>
+          <td style="padding:.65rem 1rem;border-bottom:1px solid #e5e7eb;font-size:.88rem;">${c.hinta != null ? c.hinta.toFixed(2) + ' €/kk' : '–'}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch {}
+}
+
+// ── Asiakkaat ─────────────────────────────────────────────────────────────────
+async function loadCustomers() {
+  try {
+    const r = await apiFetch('/api/customers');
+    allCustomers = await r.json();
+    renderCustomers();
+  } catch {}
+}
+
+function setFilter(btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterStatus = btn.dataset.status;
+  renderCustomers();
+}
+
+function filterCustomers() { renderCustomers(); }
+
+function renderCustomers() {
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const rows = allCustomers.filter(c => {
+    if (filterStatus && c.status !== filterStatus) return false;
+    if (q) {
+      const hay = `${c.name} ${c.email || ''} ${c.ytunnus || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const tbody = document.getElementById('customers-body');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🔍</div>Ei asiakkaita.</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(c => `
+    <tr class="row-link" onclick="openPanel(${c.id})">
+      <td><strong>${esc(c.name)}</strong></td>
+      <td>${c.email ? `<a class="ext-link" href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a>` : '–'}</td>
+      <td>${c.paketti ? c.paketti + ' €' : '–'}</td>
+      <td><span class="badge badge-${c.status}">${statusLabel(c.status)}</span></td>
+      <td>${c.seuraava_lasku ? fmtDate(c.seuraava_lasku) : '–'}</td>
+      <td>${c.sivusto_url ? `<a class="ext-link" href="${esc(c.sivusto_url)}" target="_blank" onclick="event.stopPropagation()">Avaa ↗</a>` : '–'}</td>
+    </tr>`).join('');
+}
+
+// ── Sivupaneeli ───────────────────────────────────────────────────────────────
+async function openPanel(id) {
+  try {
+    const r = await apiFetch(`/api/customers/${id}`);
+    const c = await r.json();
+    currentCustomerId = id;
+    document.getElementById('panel-title').textContent = c.name;
+    document.getElementById('panel-body').innerHTML = buildCustomerForm(c);
+    document.getElementById('side-panel').classList.add('open');
+  } catch { toast('Virhe ladattaessa asiakasta', true); }
+}
+
+function closePanel() {
+  document.getElementById('side-panel').classList.remove('open');
+  currentCustomerId = null;
+}
+
+async function savePanel() {
+  if (!currentCustomerId) return;
+  const data = collectForm('panel-form');
+  try {
+    const r = await apiFetch(`/api/customers/${currentCustomerId}`, {
+      method: 'PATCH', body: JSON.stringify(data),
+    });
+    if (!r.ok) { const d = await r.json(); toast(d.error || 'Virhe tallennuksessa', true); return; }
+    const updated = await r.json();
+    // Päivitä paikallinen lista
+    const idx = allCustomers.findIndex(c => c.id === currentCustomerId);
+    if (idx !== -1) allCustomers[idx] = updated;
+    renderCustomers();
+    document.getElementById('panel-title').textContent = updated.name;
+    toast('Tallennettu!');
+  } catch { toast('Verkkovirhe', true); }
+}
+
+async function deleteCustomer() {
+  if (!currentCustomerId) return;
+  const c = allCustomers.find(x => x.id === currentCustomerId);
+  if (!confirm(`Poistetaanko asiakas "${c?.name}"? Tätä ei voi peruuttaa.`)) return;
+  try {
+    const r = await apiFetch(`/api/customers/${currentCustomerId}`, { method: 'DELETE' });
+    if (!r.ok) { toast('Poisto epäonnistui', true); return; }
+    allCustomers = allCustomers.filter(x => x.id !== currentCustomerId);
+    renderCustomers();
+    closePanel();
+    toast('Asiakas poistettu');
+  } catch { toast('Verkkovirhe', true); }
+}
+
+// ── Lisää asiakas ─────────────────────────────────────────────────────────────
+function buildAddForm() {
+  document.getElementById('add-form-container').innerHTML = buildCustomerForm({});
+}
+
+async function submitAdd() {
+  const data = collectForm('panel-form');
+  if (!data.name?.trim()) { toast('Nimi on pakollinen', true); return; }
+  try {
+    const r = await apiFetch('/api/customers', {
+      method: 'POST', body: JSON.stringify(data),
+    });
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Virhe', true); return; }
+    allCustomers.unshift(d);
+    toast('Asiakas lisätty!');
+    buildAddForm();
+    showView('customers');
+  } catch { toast('Verkkovirhe', true); }
+}
+
+// ── Lomake-HTML ───────────────────────────────────────────────────────────────
+function buildCustomerForm(c) {
+  const val = (v) => v != null ? esc(String(v)) : '';
+  const sel = (field, opt) => c[field] === opt ? 'selected' : '';
+
+  // Laskutuksen mukaan esitäytetty seuraava lasku
+  const nextDefault = (() => {
+    if (c.laskutus === 'kuukausi') return datePlusStr(1);
+    return datePlusStr(365);
+  })();
+
+  return `<form id="panel-form" onsubmit="return false">
+    <div class="form-section">
+      <div class="form-section-title">Yhteystiedot</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Nimi *</label><input name="name" value="${val(c.name)}" placeholder="Yritys Oy"></div>
+        <div class="form-group"><label>Sähköposti</label><input name="email" type="email" value="${val(c.email)}" placeholder="info@yritys.fi"></div>
+        <div class="form-group"><label>Puhelin</label><input name="phone" value="${val(c.phone)}" placeholder="+358 40 123 4567"></div>
+        <div class="form-group"><label>Y-tunnus</label><input name="ytunnus" value="${val(c.ytunnus)}" placeholder="1234567-8"></div>
+      </div>
+      <div class="form-grid full" style="margin-top:.65rem;">
+        <div class="form-group"><label>Osoite</label><input name="address" value="${val(c.address)}" placeholder="Kaupunki, Maa"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Status</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label>
+          <select name="status">
+            <option value="aktiivinen" ${sel('status','aktiivinen')}>Aktiivinen</option>
+            <option value="kokeilu"    ${sel('status','kokeilu')}>Kokeilu</option>
+            <option value="churned"    ${sel('status','churned')}>Churned</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Aloituspäivä</label><input name="aloituspaiva" type="date" value="${val(c.aloituspaiva)}"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Laskutus</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Paketti</label>
+          <select name="paketti" onchange="updateHintaDefault(this)">
+            <option value="">– valitse –</option>
+            <option value="169" ${sel('paketti','169')}>169 € (1 sivu)</option>
+            <option value="249" ${sel('paketti','249')}>249 € (2–5 sivua)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Laskutusväli</label>
+          <select name="laskutus">
+            <option value="">– valitse –</option>
+            <option value="vuosi"    ${sel('laskutus','vuosi')}>Vuosi</option>
+            <option value="kuukausi" ${sel('laskutus','kuukausi')}>Kuukausi</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Kuukausihinta (€)</label>
+          <input name="hinta" type="number" step="0.01" value="${c.hinta != null ? val(c.hinta) : ''}" placeholder="8.90" id="hinta-input">
+        </div>
+        <div class="form-group"><label>Seuraava lasku</label>
+          <input name="seuraava_lasku" type="date" value="${val(c.seuraava_lasku) || (c.id ? '' : nextDefault)}">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Tekniset tiedot</div>
+      <div class="form-grid full">
+        <div class="form-group"><label>Sivuston URL</label><input name="sivusto_url" value="${val(c.sivusto_url)}" placeholder="https://yritys.fi"></div>
+        <div class="form-group"><label>GitHub-repo</label><input name="github_repo" value="${val(c.github_repo)}" placeholder="https://github.com/org/repo"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Muistiinpanot</div>
+      <div class="form-group"><textarea name="notes" rows="5" placeholder="Vapaat muistiinpanot...">${val(c.notes)}</textarea></div>
+    </div>
+  </form>`;
+}
+
+function updateHintaDefault(sel) {
+  const input = document.getElementById('hinta-input');
+  if (!input || input.value) return;
+  if (sel.value === '169') input.value = '8.90';
+  if (sel.value === '249') input.value = '8.90';
+}
+
+function collectForm(formId) {
+  const form = document.getElementById(formId);
+  if (!form) return {};
+  const data = {};
+  new FormData(form).forEach((v, k) => { data[k] = v.trim() === '' ? null : v.trim(); });
+  if (data.hinta) data.hinta = parseFloat(data.hinta);
+  return data;
+}
+
+// ── Apufunktiot ───────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function statusLabel(s) { return { aktiivinen: 'Aktiivinen', kokeilu: 'Kokeilu', churned: 'Churned' }[s] || s; }
+function fmtDate(d) { if (!d) return '–'; const [y,m,dd] = d.split('-'); return `${parseInt(dd)}.${parseInt(m)}.${y}`; }
+function datePlusStr(days) { const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0,10); }
+
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? '#b91c1c' : '#1a1f2e';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// Sulje paneeli painamalla Esc
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+</script>
+</body>
+</html>
