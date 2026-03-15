@@ -225,7 +225,7 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
   <!-- Trial expired overlay -->
   <div class="trial-overlay" id="trial-overlay">
     <div class="trial-box">
-      <h2>Kokeilujaksosi on päättynyt</h2>
+      <h2 id="trial-box-title">Kokeilujaksosi päättyy pian</h2>
       <p>Täytä laskutustiedot jatkaaksesi ajanvarausjärjestelmän käyttöä.</p>
       <div id="trial-err" class="err-box"></div>
       <label>Yrityksen nimi *</label>
@@ -1014,6 +1014,12 @@ function toggleTrialDetails() {
 
 function openTrialForm() {
   const t = window._trialData || {};
+  const titleEl = document.getElementById('trial-box-title');
+  if (titleEl && t.trial_end) {
+    const [y, m, d] = t.trial_end.split('-');
+    const pvm = `${parseInt(d)}.${parseInt(m)}.${y}`;
+    titleEl.textContent = `Kokeilujaksosi päättyy ${pvm}, jonka jälkeen tilaus vaihtuu maksulliseen`;
+  }
   if (t.billing_name)    document.getElementById('trial-billing-name').value    = t.billing_name;
   if (t.billing_ytunnus) document.getElementById('trial-billing-ytunnus').value = t.billing_ytunnus;
   if (t.billing_address) document.getElementById('trial-billing-address').value = t.billing_address;
