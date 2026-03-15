@@ -2029,11 +2029,12 @@ async function saveVarausAsetukset() {
   d.close_before   = document.getElementById('ot-close-before').value;
   d.reminder_email = document.getElementById('ot-reminder-email').value;
   localStorage.setItem('varaus_omattiedot', JSON.stringify(d));
-  const reminderVal = d.reminder_email === '0' ? null : parseInt(d.reminder_email);
+  const reminderVal   = d.reminder_email === '0' ? null : parseInt(d.reminder_email);
+  const closeBeforeVal = parseInt(d.close_before) || 0;
   await fetch(`${API}/api/admin/yritys`, {
     method: 'PATCH',
     headers: authHeaders(),
-    body: JSON.stringify({ reminder_hours: reminderVal }),
+    body: JSON.stringify({ reminder_hours: reminderVal, close_before: closeBeforeVal }),
   }).catch(() => {});
   const ok = document.getElementById('ot-va-ok');
   ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
@@ -2085,6 +2086,7 @@ async function loadSettings() {
   document.getElementById('s-address').value = d.address||'';
   document.getElementById('s-desc').value    = d.description||'';
   if (d.reminder_hours != null) document.getElementById('ot-reminder-email').value = String(d.reminder_hours);
+  if (d.close_before   != null) document.getElementById('ot-close-before').value   = String(d.close_before);
 }
 
 async function saveSettings() {
