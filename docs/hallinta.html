@@ -55,10 +55,18 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
 .warn-hint{font-size:.78rem;color:#d97706;margin-bottom:.75rem}
 
 /* ── Trial-banneri ── */
-.trial-banner{padding:.55rem 1.5rem;font-size:.84rem;font-weight:600;display:none}
-.trial-banner.info{background:#eff6ff;color:#1d4ed8;border-bottom:1px solid #bfdbfe;display:block}
-.trial-banner.warn{background:#fff7ed;color:#9a3412;border-bottom:1px solid #fed7aa;display:block}
-.trial-banner.danger{background:#fef2f2;color:#b91c1c;border-bottom:1px solid #fca5a5;display:block}
+.trial-banner{padding:.6rem 1.5rem;font-size:.84rem;display:none;border-bottom:1px solid transparent}
+.trial-banner.info  {background:#eff6ff;color:#1d4ed8;border-bottom-color:#bfdbfe;display:block}
+.trial-banner.warn  {background:#fff7ed;color:#9a3412;border-bottom-color:#fed7aa;display:block}
+.trial-banner.danger{background:#fef2f2;color:#b91c1c;border-bottom-color:#fca5a5;display:block}
+.trial-banner-row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.trial-banner-text{font-weight:600;flex:1;min-width:0}
+.trial-read-more{font-size:.8rem;font-weight:600;cursor:pointer;text-decoration:underline;white-space:nowrap;background:none;border:none;color:inherit;padding:0}
+.trial-fill-btn{padding:5px 14px;font-size:.8rem;font-weight:700;border-radius:6px;border:none;cursor:pointer;white-space:nowrap}
+.trial-banner.info  .trial-fill-btn{background:#1d4ed8;color:#fff}
+.trial-banner.warn  .trial-fill-btn{background:#9a3412;color:#fff}
+.trial-banner.danger .trial-fill-btn{background:#b91c1c;color:#fff}
+.trial-banner-details{margin-top:.5rem;font-size:.82rem;font-weight:400;line-height:1.55;border-top:1px solid rgba(0,0,0,.08);padding-top:.5rem;display:none}
 
 /* ── Trial expired overlay ── */
 .trial-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:200;align-items:center;justify-content:center;padding:1rem}
@@ -960,28 +968,61 @@ async function checkTrialStatus() {
     const t = await r.json();
     if (t.terms_accepted) return;
     if (t.days_left <= 0) {
-      // Esitäytä lomake jos tiedot on jo tallennettu
-      if (t.billing_name) document.getElementById('trial-billing-name').value = t.billing_name;
-      if (t.billing_ytunnus) document.getElementById('trial-billing-ytunnus').value = t.billing_ytunnus;
-      if (t.billing_address) document.getElementById('trial-billing-address').value = t.billing_address;
-      if (t.billing_interval) {
-        document.querySelector(`input[name="trial-interval"][value="${t.billing_interval}"]`).checked = true;
-      }
-      document.getElementById('trial-overlay').classList.add('open');
+      window._trialData = t;
+      openTrialForm();
     } else {
       const banner = document.getElementById('trial-banner');
+      window._trialData = t;
+      let cls, mainText;
       if (t.days_left === 1) {
-        banner.className = 'trial-banner danger';
-        banner.textContent = `Kokeilujaksosi päättyy tänään! Kirjaudu ulos ja takaisin sisään nähdäksesi tilauslomakkeen.`;
+        cls = 'trial-banner danger';
+        mainText = `Kokeilujaksosi päättyy tänään!`;
       } else if (t.days_left <= 7) {
-        banner.className = 'trial-banner warn';
-        banner.textContent = `Kokeilujaksoa jäljellä: ${t.days_left} päivää. Kokeilujakso päättyy ${t.trial_end}.`;
+        cls = 'trial-banner warn';
+        mainText = `Kokeilujaksoa jäljellä: ${t.days_left} päivää (päättyy ${t.trial_end}).`;
       } else {
-        banner.className = 'trial-banner info';
-        banner.textContent = `Ilmainen kokeilujakso käynnissä – ${t.days_left} päivää jäljellä (päättyy ${t.trial_end}).`;
+        cls = 'trial-banner info';
+        mainText = `Ilmainen kokeilujakso käynnissä – ${t.days_left} päivää jäljellä (päättyy ${t.trial_end}).`;
       }
+      banner.className = cls;
+      banner.innerHTML = `
+        <div class="trial-banner-row">
+          <span class="trial-banner-text">${mainText}</span>
+          <button class="trial-read-more" onclick="toggleTrialDetails()">Lue lisää</button>
+          <button class="trial-fill-btn" onclick="openTrialForm()">Täytä laskutustiedot</button>
+        </div>
+        <div class="trial-banner-details" id="trial-banner-details">
+          Täytä laskutustietosi ja hyväksy käyttöehdot ennen kokeilujakson päättymistä,
+          jotta ehdimme tarkistaa tiedot ajoissa. Jos kokeilujakso päättyy ennen kuin olemme
+          vahvistaneet tietosi, tilisi lukitaan väliaikaisesti – voit kuitenkin aina avata sen
+          täyttämällä tiedot kirjautumisen yhteydessä.
+        </div>`;
     }
   } catch (e) { console.error('checkTrialStatus:', e); }
+}
+
+function toggleTrialDetails() {
+  const d = document.getElementById('trial-banner-details');
+  const btn = d.previousElementSibling?.querySelector('.trial-read-more') ||
+              document.querySelector('.trial-read-more');
+  if (d.style.display === 'block') {
+    d.style.display = 'none'; if (btn) btn.textContent = 'Lue lisää';
+  } else {
+    d.style.display = 'block'; if (btn) btn.textContent = 'Sulje';
+  }
+}
+
+function openTrialForm() {
+  const t = window._trialData || {};
+  if (t.billing_name)    document.getElementById('trial-billing-name').value    = t.billing_name;
+  if (t.billing_ytunnus) document.getElementById('trial-billing-ytunnus').value = t.billing_ytunnus;
+  if (t.billing_address) document.getElementById('trial-billing-address').value = t.billing_address;
+  if (t.billing_interval) {
+    const el = document.querySelector(`input[name="trial-interval"][value="${t.billing_interval}"]`);
+    if (el) el.checked = true;
+  }
+  document.getElementById('trial-err').style.display = 'none';
+  document.getElementById('trial-overlay').classList.add('open');
 }
 
 async function acceptTrialTerms() {
