@@ -54,6 +54,26 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
 .modal-footer{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem}
 .warn-hint{font-size:.78rem;color:#d97706;margin-bottom:.75rem}
 
+/* ── Trial-banneri ── */
+.trial-banner{padding:.55rem 1.5rem;font-size:.84rem;font-weight:600;display:none}
+.trial-banner.info{background:#eff6ff;color:#1d4ed8;border-bottom:1px solid #bfdbfe;display:block}
+.trial-banner.warn{background:#fff7ed;color:#9a3412;border-bottom:1px solid #fed7aa;display:block}
+.trial-banner.danger{background:#fef2f2;color:#b91c1c;border-bottom:1px solid #fca5a5;display:block}
+
+/* ── Trial expired overlay ── */
+.trial-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:200;align-items:center;justify-content:center;padding:1rem}
+.trial-overlay.open{display:flex}
+.trial-box{background:#fff;border-radius:16px;padding:2rem;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.trial-box h2{font-size:1.2rem;font-weight:800;color:#1e3a5f;margin-bottom:.25rem}
+.trial-box p{color:#64748b;font-size:.87rem;margin-bottom:1.25rem}
+.trial-interval{display:flex;gap:1rem;margin-bottom:.75rem}
+.trial-interval label{display:flex;align-items:center;gap:.4rem;font-size:.9rem;font-weight:600;cursor:pointer;width:auto}
+.trial-interval input[type=radio]{width:auto;margin-bottom:0}
+.trial-terms{display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.5rem}
+.trial-terms input[type=checkbox]{width:auto;margin:2px 0 0;flex-shrink:0}
+.trial-terms span{font-size:.84rem;color:#374151}
+.trial-terms a{color:#7c5cfc}
+
 /* ── Kalenteri ── */
 #panel-kalenteri{height:calc(100vh - 56px);display:none;flex-direction:column}
 #panel-kalenteri.active{display:flex}
@@ -188,6 +208,40 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
       <span class="user-chip" id="top-user"></span>
       <a id="top-booking-link" href="#" target="_blank" style="font-size:.82rem;color:#7c5cfc;text-decoration:none">Varaussivu ↗</a>
       <button class="logout-btn" onclick="doLogout()">Kirjaudu ulos</button>
+    </div>
+  </div>
+
+  <!-- Trial-banneri -->
+  <div class="trial-banner" id="trial-banner"></div>
+
+  <!-- Trial expired overlay -->
+  <div class="trial-overlay" id="trial-overlay">
+    <div class="trial-box">
+      <h2>Kokeilujaksosi on päättynyt</h2>
+      <p>Täytä laskutustiedot jatkaaksesi ajanvarausjärjestelmän käyttöä.</p>
+      <div id="trial-err" class="err-box"></div>
+      <label>Yrityksen nimi *</label>
+      <input id="trial-billing-name" type="text" placeholder="Yrityksen nimi">
+      <label>Y-tunnus *</label>
+      <input id="trial-billing-ytunnus" type="text" placeholder="1234567-8">
+      <label>Laskutusosoite *</label>
+      <input id="trial-billing-address" type="text" placeholder="Katuosoite, postinumero kaupunki">
+      <label>Laskutusväli *</label>
+      <div class="trial-interval">
+        <label><input type="radio" name="trial-interval" value="kuukausi" checked> Kuukausittain</label>
+        <label><input type="radio" name="trial-interval" value="vuosi"> Vuosittain</label>
+      </div>
+      <div class="trial-terms">
+        <input type="checkbox" id="trial-terms1">
+        <span>Olen lukenut ja hyväksyn <a href="#" target="_blank">käyttöehdot</a></span>
+      </div>
+      <div class="trial-terms">
+        <input type="checkbox" id="trial-terms2">
+        <span>Olen lukenut ja hyväksyn <a href="#" target="_blank">laskutusehdot</a></span>
+      </div>
+      <div class="modal-footer" style="margin-top:1.25rem">
+        <button class="btn" onclick="acceptTrialTerms()">Jatka tilaamalla →</button>
+      </div>
     </div>
   </div>
 
@@ -601,6 +655,29 @@ input:focus,select:focus,textarea:focus{border-color:#7c5cfc}
   </div>
 </div>
 
+<!-- Asiakas modal -->
+<div class="modal-bg" id="asiakas-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <span>Asiakkaan tiedot</span>
+      <button class="modal-close" onclick="closeAsiakasModal()">✕</button>
+    </div>
+    <input type="hidden" id="am-email-orig">
+    <label>Nimi</label>
+    <input id="am-name" placeholder="Etunimi Sukunimi">
+    <label>Sähköposti (ei muutettavissa)</label>
+    <input id="am-email" type="email" readonly style="background:#f8fafc;color:#94a3b8">
+    <label>Puhelinnumero</label>
+    <input id="am-phone" placeholder="+358 40 123 4567">
+    <div id="am-bookings" style="margin-top:1rem"></div>
+    <div class="err-box" id="am-err"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAsiakasModal()">Peruuta</button>
+      <button class="btn" onclick="saveAsiakas()">Tallenna</button>
+    </div>
+  </div>
+</div>
+
 <script src="config.js"></script>
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
@@ -872,6 +949,65 @@ function showApp() {
   loadAvailability();
   loadSettings();
   showPanel('kalenteri');
+  checkTrialStatus();
+}
+
+// ── Kokeilujakso ──────────────────────────────────────────────────────────────
+async function checkTrialStatus() {
+  try {
+    const r = await fetch(`${API}/api/admin/trial`, { headers: authHeaders() });
+    if (!r.ok) return;
+    const t = await r.json();
+    if (t.terms_accepted) return;
+    if (t.days_left <= 0) {
+      // Esitäytä lomake jos tiedot on jo tallennettu
+      if (t.billing_name) document.getElementById('trial-billing-name').value = t.billing_name;
+      if (t.billing_ytunnus) document.getElementById('trial-billing-ytunnus').value = t.billing_ytunnus;
+      if (t.billing_address) document.getElementById('trial-billing-address').value = t.billing_address;
+      if (t.billing_interval) {
+        document.querySelector(`input[name="trial-interval"][value="${t.billing_interval}"]`).checked = true;
+      }
+      document.getElementById('trial-overlay').classList.add('open');
+    } else {
+      const banner = document.getElementById('trial-banner');
+      if (t.days_left === 1) {
+        banner.className = 'trial-banner danger';
+        banner.textContent = `Kokeilujaksosi päättyy tänään! Kirjaudu ulos ja takaisin sisään nähdäksesi tilauslomakkeen.`;
+      } else if (t.days_left <= 7) {
+        banner.className = 'trial-banner warn';
+        banner.textContent = `Kokeilujaksoa jäljellä: ${t.days_left} päivää. Kokeilujakso päättyy ${t.trial_end}.`;
+      } else {
+        banner.className = 'trial-banner info';
+        banner.textContent = `Ilmainen kokeilujakso käynnissä – ${t.days_left} päivää jäljellä (päättyy ${t.trial_end}).`;
+      }
+    }
+  } catch (e) { console.error('checkTrialStatus:', e); }
+}
+
+async function acceptTrialTerms() {
+  const errEl = document.getElementById('trial-err');
+  errEl.style.display = 'none';
+  const billing_name    = document.getElementById('trial-billing-name').value.trim();
+  const billing_ytunnus = document.getElementById('trial-billing-ytunnus').value.trim();
+  const billing_address = document.getElementById('trial-billing-address').value.trim();
+  const billing_interval = document.querySelector('input[name="trial-interval"]:checked').value;
+  const terms1 = document.getElementById('trial-terms1').checked;
+  const terms2 = document.getElementById('trial-terms2').checked;
+  if (!billing_name || !billing_ytunnus || !billing_address) {
+    errEl.textContent = 'Täytä kaikki kentät.'; errEl.style.display = 'block'; return;
+  }
+  if (!terms1 || !terms2) {
+    errEl.textContent = 'Hyväksy käyttöehdot ja laskutusehdot jatkaaksesi.'; errEl.style.display = 'block'; return;
+  }
+  const r = await fetch(`${API}/api/admin/accept-terms`, {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ billing_name, billing_address, billing_ytunnus, billing_interval }),
+  });
+  if (!r.ok) {
+    const d = await r.json();
+    errEl.textContent = d.error || 'Virhe. Yritä uudelleen.'; errEl.style.display = 'block'; return;
+  }
+  location.reload();
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
@@ -919,14 +1055,51 @@ function renderAsiakkaatRows(list) {
   }
   tbody.innerHTML = list.map(a => {
     const [y,m,d] = a.last_booking.split('-');
-    return `<tr>
+    const safeA = JSON.stringify(a).replace(/'/g, '&#39;');
+    return `<tr style="cursor:pointer" onclick='openAsiakasModal(${safeA})'>
       <td><strong>${a.customer_name}</strong></td>
-      <td><a href="mailto:${a.customer_email}" style="color:#7c5cfc">${a.customer_email}</a></td>
+      <td style="color:#7c5cfc">${a.customer_email}</td>
       <td style="color:#64748b">${a.customer_phone||'–'}</td>
       <td style="text-align:center;font-weight:600">${a.booking_count}</td>
       <td style="color:#64748b">${parseInt(d)}.${parseInt(m)}.${y}</td>
     </tr>`;
   }).join('');
+}
+
+function openAsiakasModal(a) {
+  document.getElementById('am-email-orig').value = a.customer_email;
+  document.getElementById('am-name').value  = a.customer_name;
+  document.getElementById('am-email').value = a.customer_email;
+  document.getElementById('am-phone').value = a.customer_phone || '';
+  document.getElementById('am-err').style.display = 'none';
+  const bkDiv = document.getElementById('am-bookings');
+  const [y,m,d] = a.last_booking.split('-');
+  bkDiv.innerHTML = `<div style="font-size:.82rem;color:#64748b">
+    <strong style="color:#1e3a5f">${a.booking_count} varausta</strong> —
+    viimeisin ${parseInt(d)}.${parseInt(m)}.${y}
+  </div>`;
+  document.getElementById('asiakas-modal').classList.add('open');
+}
+
+function closeAsiakasModal() {
+  document.getElementById('asiakas-modal').classList.remove('open');
+}
+
+async function saveAsiakas() {
+  const emailOrig = document.getElementById('am-email-orig').value;
+  const name  = document.getElementById('am-name').value.trim();
+  const phone = document.getElementById('am-phone').value.trim();
+  const errEl = document.getElementById('am-err');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'Nimi on pakollinen'; errEl.style.display = 'block'; return; }
+  const r = await fetch(`${API}/api/admin/asiakkaat`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ email: emailOrig, name, phone: phone || null }),
+  });
+  if (!r.ok) { const d = await r.json(); errEl.textContent = d.error; errEl.style.display = 'block'; return; }
+  closeAsiakasModal();
+  await renderAsiakkaat();
 }
 
 // ── Kalenteri ────────────────────────────────────────────────────────────────
@@ -1804,11 +1977,17 @@ function saveOmatTiedot() {
   ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
 }
 
-function saveVarausAsetukset() {
+async function saveVarausAsetukset() {
   const d = JSON.parse(localStorage.getItem('varaus_omattiedot') || '{}');
   d.close_before   = document.getElementById('ot-close-before').value;
   d.reminder_email = document.getElementById('ot-reminder-email').value;
   localStorage.setItem('varaus_omattiedot', JSON.stringify(d));
+  const reminderVal = d.reminder_email === '0' ? null : parseInt(d.reminder_email);
+  await fetch(`${API}/api/admin/yritys`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ reminder_hours: reminderVal }),
+  }).catch(() => {});
   const ok = document.getElementById('ot-va-ok');
   ok.style.display='block'; setTimeout(()=>ok.style.display='none', 2500);
 }
@@ -1858,6 +2037,7 @@ async function loadSettings() {
   document.getElementById('s-ytunnus').value = d.business_id||'';
   document.getElementById('s-address').value = d.address||'';
   document.getElementById('s-desc').value    = d.description||'';
+  if (d.reminder_hours != null) document.getElementById('ot-reminder-email').value = String(d.reminder_hours);
 }
 
 async function saveSettings() {

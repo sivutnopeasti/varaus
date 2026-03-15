@@ -82,9 +82,14 @@
   .badge {
     display: inline-block; padding: .2rem .55rem; border-radius: 20px; font-size: .75rem; font-weight: 600;
   }
-  .badge-aktiivinen { background: #dcfce7; color: #15803d; }
-  .badge-kokeilu    { background: #fef9c3; color: #854d0e; }
-  .badge-churned    { background: #fee2e2; color: #b91c1c; }
+  .badge-aktiivinen        { background: #dcfce7; color: #15803d; }
+  .badge-kokeilu           { background: #fef9c3; color: #854d0e; }
+  .badge-kokeilu_paattynyt { background: #fff7ed; color: #9a3412; }
+  .badge-churned           { background: #fee2e2; color: #b91c1c; }
+  .confirm-billing-box { background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:.85rem 1rem; margin-bottom:1rem; }
+  .confirm-billing-box p { font-size:.85rem; color:#9a3412; margin-bottom:.6rem; }
+  .confirm-billing-box .btn { background:#ea580c; font-size:.82rem; padding:6px 14px; }
+  .confirm-billing-box .btn:hover { background:#c2410c; }
   .badge-sivusto    { background: #dbeafe; color: #1d4ed8; }
   .badge-ajanvaraus { background: #ede9fe; color: #6d28d9; }
   .product-badges   { display: flex; gap: .3rem; flex-wrap: wrap; }
@@ -238,6 +243,7 @@
         <button class="filter-btn active" data-status="" onclick="setFilter(this)">Kaikki</button>
         <button class="filter-btn" data-status="aktiivinen" onclick="setFilter(this)">Aktiivinen</button>
         <button class="filter-btn" data-status="kokeilu" onclick="setFilter(this)">Kokeilu</button>
+        <button class="filter-btn" data-status="kokeilu_paattynyt" onclick="setFilter(this)">Odottaa</button>
         <button class="filter-btn" data-status="churned" onclick="setFilter(this)">Churned</button>
         <button class="btn-primary" onclick="showView('add')">+ Lisää</button>
       </div>
@@ -490,7 +496,14 @@ async function openPanel(id) {
     const c = await r.json();
     currentCustomerId = id;
     document.getElementById('panel-title').textContent = c.name;
+    const confirmBox = c.status === 'kokeilu_paattynyt'
+      ? `<div class="confirm-billing-box">
+          <p>Asiakas on hyväksynyt käyttöehdot. Tarkista laskutustiedot alla ja vahvista laskutus.</p>
+          <button class="btn" onclick="confirmBilling(${c.id})">Vahvista laskutus →</button>
+        </div>`
+      : '';
     document.getElementById('panel-body').innerHTML =
+      confirmBox +
       buildCustomerForm(c) +
       `<div class="invoice-history">
         <div class="invoice-history-title">Laskuhistoria</div>
@@ -521,6 +534,17 @@ async function savePanel() {
     renderCustomers();
     document.getElementById('panel-title').textContent = updated.name;
     toast('Tallennettu!');
+  } catch { toast('Verkkovirhe', true); }
+}
+
+async function confirmBilling(id) {
+  try {
+    const r = await apiFetch(`/api/customers/${id}/confirm-billing`, { method: 'POST', body: '{}' });
+    if (!r.ok) { const d = await r.json(); toast(d.error || 'Virhe', true); return; }
+    const data = await r.json();
+    toast(`Laskutus vahvistettu! Seuraava lasku: ${data.seuraava_lasku}`);
+    await loadCustomers();
+    openPanel(id);
   } catch { toast('Verkkovirhe', true); }
 }
 
@@ -604,7 +628,8 @@ function buildCustomerForm(c) {
         <div class="form-group"><label>Status</label>
           <select name="status">
             <option value="aktiivinen" ${sel('status','aktiivinen')}>Aktiivinen</option>
-            <option value="kokeilu"    ${sel('status','kokeilu')}>Kokeilu</option>
+            <option value="kokeilu"           ${sel('status','kokeilu')}>Kokeilu</option>
+            <option value="kokeilu_paattynyt" ${sel('status','kokeilu_paattynyt')}>Odottaa vahvistusta</option>
             <option value="churned"    ${sel('status','churned')}>Churned</option>
           </select>
         </div>
@@ -678,7 +703,7 @@ function collectForm(formId) {
 
 // ── Apufunktiot ───────────────────────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function statusLabel(s) { return { aktiivinen: 'Aktiivinen', kokeilu: 'Kokeilu', churned: 'Churned' }[s] || s; }
+function statusLabel(s) { return { aktiivinen: 'Aktiivinen', kokeilu: 'Kokeilu', kokeilu_paattynyt: 'Odottaa vahvistusta', churned: 'Churned' }[s] || s; }
 function productBadges(p) {
   if (!p || p === 'ajanvaraus') return '<span class="badge badge-ajanvaraus">📅 Varaus</span>';
   if (p === 'sivusto')          return '<span class="badge badge-sivusto">🌐 Sivu</span>';
